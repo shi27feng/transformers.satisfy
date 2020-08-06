@@ -1,2 +1,2 @@
-# satisfiability.goes.neural
-propositional satisfiability problem (SAT) goes neural and deep
+# _Propositional Satisfiability Problem_ (SAT) goes neural and deep
+We'd like to use graph neural network to solve the SAT 
