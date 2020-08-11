@@ -1,6 +1,8 @@
 import csv
 import os
+import random
 
+import torch
 from torch_geometric.data import Data
 from utils import *
 
@@ -50,10 +52,10 @@ def load_graphs_lcg(data_dir, stats_dir):
     return graphs, nodes_par1s, nodes_par2s
 
 
-class Dataset_sat(torch.utils.data.Dataset):
+class SatData(torch.utils.data.Dataset):
     def __init__(self, graph_list, nodes_par1_list, nodes_par2_list, epoch_len,
                  yield_prob=1, speedup=False, hop=4, simple_sample=False):
-        super(Dataset_sat, self).__init__()
+        super(SatData, self).__init__()
         self.graph_list = graph_list
         self.nodes_par1_list = nodes_par1_list
         self.nodes_par2_list = nodes_par2_list
@@ -243,7 +245,7 @@ class Dataset_sat(torch.utils.data.Dataset):
                     continue
 
 
-class graph_generator():
+class GraphGenerator:
     def __init__(self, graph, par_split, sample_size=100, device='cpu', clause_num=None):
         self.graph_raw = graph
         self.graph = self.graph_raw.copy()
