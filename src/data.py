@@ -24,7 +24,7 @@ def load_graphs_lcg(data_dir, stats_dir):
             with open(data_dir + filename, 'rb') as fh:
                 graph = nx.read_edgelist(fh)
             filename = filename[:-14]  # remove postfix
-            # find partite split
+            # find bipartite split
             for stat in stats:
                 if filename in stat[0]:
                     n = graph.number_of_nodes()
