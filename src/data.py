@@ -253,6 +253,7 @@ class GraphGenerator:
         self.sample_size = sample_size
         self.clause_num = clause_num
         self.device = device
+        self.node_par2s = None
         # init once
         self.n = self.graph.number_of_nodes()
         self.data = Data()
