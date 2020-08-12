@@ -34,7 +34,8 @@ class MultiHeadAttention(nn.Module, ABC):
             ret['v'] = self.linears[2](x).view(batch_size, self.h, self.d_k)
         return ret
 
-    def get_o(self, x):
+    def readout(self, x):
         """get output of the multi-head attention"""
         batch_size = x.shape[0]
         return self.linears[3](x.view(batch_size, -1))
+
