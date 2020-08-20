@@ -1,8 +1,7 @@
 from abc import ABC
 
-import torch
 import torch.nn as nn
-import torch_geometric as pyg
+
 from layers import clones
 
 
