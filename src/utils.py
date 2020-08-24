@@ -8,21 +8,21 @@ import numpy as np
 
 
 # save a list of graphs
-def save_graph_list(glist, fname, clean=False, has_par=False, nodes_par1_list=None, nodes_par2_list=None):
-    with open(fname, "wb") as f:
+def save_graph_list(graphs, filename, clean=False, has_par=False, nodes_par1_list=None, nodes_par2_list=None):
+    with open(filename, "wb") as f:
         graphs_info = []
-        for i, G in enumerate(glist):
+        for i, gr in enumerate(graphs):
             if clean:
-                G = max(nx.connected_component_subgraphs(G), key=len)
+                gr = max(nx.connected_component_subgraphs(gr), key=len)
             if has_par:
-                graphs_info.append([G.nodes(), G.edges(), nodes_par1_list[i], nodes_par2_list[i]])
+                graphs_info.append([gr.nodes(), gr.edges(), nodes_par1_list[i], nodes_par2_list[i]])
             else:
-                graphs_info.append([G.nodes(), G.edges()])
+                graphs_info.append([gr.nodes(), gr.edges()])
         pickle.dump(graphs_info, f)
 
 
-def load_graph_list(fname, has_par=False):
-    with open(fname, "rb") as f:
+def load_graph_list(filename, has_par=False):
+    with open(filename, "rb") as f:
         graphs = []
         if has_par:
             nodes_par1_list = []
@@ -43,15 +43,15 @@ def load_graph_list(fname, has_par=False):
 
 
 # draw a list of graphs [G]
-def draw_graph_list(glist, row, col, fname='figures/test', layout='spring', is_single=False, k=1, node_size=55,
+def draw_graph_list(graphs, row, col, filename='figures/test', layout='spring', is_single=False, k=1, node_size=55,
                     alpha=1, width=1.3):
     # # draw graph view
     # from pylab import rcParams
     # rcParams['figure.figsize'] = 12,3
-    if len(glist) > row * col:
-        glist = glist[:row * col]
+    if len(graphs) > row * col:
+        graphs = graphs[:row * col]
     plt.switch_backend('agg')
-    for i, G in enumerate(glist):
+    for i, G in enumerate(graphs):
         plt.subplot(row, col, i + 1)
         plt.subplots_adjust(left=0, bottom=0, right=1, top=1,
                             wspace=0, hspace=0)
@@ -63,7 +63,8 @@ def draw_graph_list(glist, row, col, fname='figures/test', layout='spring', is_s
         elif layout == 'spectral':
             pos = nx.spectral_layout(G)
         # # nx.draw_networkx(G, with_labels=True, node_size=2, width=0.15, font_size = 1.5, node_color=colors,pos=pos)
-        # nx.draw_networkx(G, with_labels=False, node_size=1.5, width=0.2, font_size = 1.5, linewidths=0.2, node_color = 'k',pos=pos,alpha=0.2)
+        # nx.draw_networkx(G, with_labels=False, node_size=1.5, width=0.2, font_size = 1.5, linewidths=0.2,
+        # node_color = 'k',pos=pos,alpha=0.2)
 
         if is_single:
             # node_size default 60, edge_width default 1.5
@@ -75,17 +76,18 @@ def draw_graph_list(glist, row, col, fname='figures/test', layout='spring', is_s
             nx.draw_networkx_edges(G, pos, alpha=0.3, width=0.2)
 
     plt.tight_layout()
-    plt.savefig(fname + '.png', dpi=600)
+    plt.savefig(filename + '.png', dpi=600)
     plt.close()
 
 
 if __name__ == '__main__':
-    configs_file = '/Users/jiaxuan/Downloads/best_configs.json'
+    import os
+    configs_file = os.path.join(os.getcwd(), 'best_configs.json')
     with open(configs_file, 'r') as f:
         configs = json.load(f)
     pdb.set_trace()
-    fname = 'GCN_3_32_preTrue_dropFalse_yield1_08000.dat'
-    graphs = load_graph_list('graphs/' + fname)
+    filename = 'GCN_3_32_preTrue_dropFalse_yield1_08000.dat'
+    graphs = load_graph_list('graphs/' + filename)
     graph = graphs[0]
     pdb.set_trace()
-    draw_graph_list(graphs, row=4, col=4, fname='fig/' + fname)
+    draw_graph_list(graphs, row=4, col=4, filename='fig/' + filename)
