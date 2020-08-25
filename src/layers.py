@@ -42,8 +42,6 @@ class HGAConv(MessagePassing):
     def message_and_aggregate(self, adj_t: SparseTensor) -> Tensor:
         pass
 
-    _alpha: OptTensor
-
     def __init__(self,
                  in_channels: Union[int, Tuple[int, int]],
                  out_channels: int,
@@ -95,11 +93,11 @@ class HGAConv(MessagePassing):
         """
         Args:
             x: Tensor
-            adj: Tensor or list of Tensor
+            adj: Tensor[2, num_edges] or list of Tensor
             size: Size
             return_attention_weights (bool, optional): If set to :obj:`True`,
                 will additionally return the tuple
-                :obj:`(edge_index, attention_weights)`, holding the computed
+                :obj:`(adj, attention_weights)`, holding the computed
                 attention weights for each edge. (default: :obj:`None`)
         """
         h, c = self.heads, self.out_channels
@@ -109,18 +107,17 @@ class HGAConv(MessagePassing):
         x_r = None
         alpha_l = None
         alpha_r = None
+
         if isinstance(x, Tensor):
-            assert x.dim() == 2, 'Static graphs not supported in `HGAConv`.'
-            x_l = x_r = self.lin_l(x).view(-1, h, c)
-            alpha_l = alpha_r = (x_l * self.att_l).sum(dim=-1)  # dot product
-        else:   # for bipartite graph
+            x_l, x_r = x, None
+        else:
             x_l, x_r = x[0], x[1]
-            assert x[0].dim() == 2, 'Static graphs not supported in `HGAConv`.'
-            x_l = self.lin_l(x_l).view(-1, h, c)
-            alpha_l = (x_l * self.att_l).sum(dim=-1)
-            if x_r is not None:
-                x_r = self.lin_r(x_r).view(-1, h, c)
-                alpha_r = (x_r * self.att_r).sum(dim=-1)
+        assert x_l.dim() == 2, 'Static graphs not supported in `HGAConv`.'
+        x_l = self.lin_l(x_l).view(-1, h, c)
+        alpha_l = (x_l * self.att_l).sum(dim=-1)
+        if x_r is not None:
+            x_r = self.lin_r(x_r).view(-1, h, c)
+            alpha_r = (x_r * self.att_r).sum(dim=-1)
 
         assert x_l is not None
         assert alpha_l is not None
@@ -133,8 +130,10 @@ class HGAConv(MessagePassing):
                     adj[i] = self_loop_augment(x_l, x_r, size, adj[i])
 
         # propagate_type: (x: OptPairTensor, alpha: OptPairTensor)
-        out = self.propagate(adj, x=(x_l, x_r),
-                             alpha=(alpha_l, alpha_r), size=size)
+        out = self.propagate(adj,
+                             x=(x_l, x_r),
+                             alpha=(alpha_l, alpha_r),
+                             size=size)
 
         alpha = self._alpha
         self._alpha = None
@@ -155,6 +154,34 @@ class HGAConv(MessagePassing):
                 return out, adj.set_value(alpha, layout='coo')
         else:
             return out
+
+    def propagate(self, adj, size=None, **kwargs):
+        size = self.__check_input__(adj, size)
+
+        if isinstance(adj, Tensor) or not self.fuse:
+            coll_dict = self.__collect__(self.__user_args__,
+                                         adj,
+                                         size,
+                                         kwargs)
+
+            msg_kwargs = self.inspector.distribute('message', coll_dict)
+            out = self.message(**msg_kwargs)
+
+            if self.__explain__:
+                edge_mask = self.__edge_mask__.sigmoid()
+                # Some ops add self-loops to `adj`. We need to do the
+                # same for `edge_mask` (but do not train those).
+                if out.size(self.node_dim) != edge_mask.size(0):
+                    loop = edge_mask.new_ones(size[0])
+                    edge_mask = torch.cat([edge_mask, loop], dim=0)
+                assert out.size(self.node_dim) == edge_mask.size(0)
+                out = out * edge_mask.view([-1] + [1] * (out.dim() - 1))
+
+            aggr_kwargs = self.inspector.distribute('aggregate', coll_dict)
+            out = self.aggregate(out, **aggr_kwargs)
+
+            update_kwargs = self.inspector.distribute('update', coll_dict)
+            return self.update(out, **update_kwargs)
 
     def message(self,
                 x_j: Tensor,
