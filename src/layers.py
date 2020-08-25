@@ -19,10 +19,10 @@ def clones(module, k):
     )
 
 
-def attention(adj, a_l, a_r):
+def edge_score(adj, a_l, a_r):
     """
     Args:
-        adj: adjacency matrix [2, num_edges, heads]
+        adj: adjacency matrix [heads, 2, num_edges]
         a_l: Tensor           [N, heads]
         a_r: Tensor           [N, heads]
     """
