@@ -1,16 +1,16 @@
-import torch.nn as nn
 import copy
 from typing import Union, Tuple, Optional, Any
-from torch_geometric.typing import (OptPairTensor, Adj, Size, NoneType,
-                                    OptTensor)
+
 import torch
-from torch import Tensor
+import torch.nn as nn
 import torch.nn.functional as fn
+from torch import Tensor
 from torch.nn import Parameter, Linear
-from torch_sparse import SparseTensor, set_diag
 from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.utils import remove_self_loops, add_self_loops, softmax
 from torch_geometric.nn.inits import glorot, zeros
+from torch_geometric.typing import (OptTensor, PairTensor)
+from torch_geometric.utils import remove_self_loops, add_self_loops, softmax
+from torch_sparse import SparseTensor
 
 
 def clones(module, k):
@@ -100,7 +100,7 @@ class HGAConv(MessagePassing):
     def forward(self, x, adj, size=None, return_attention_weights=None):
         """
         Args:
-            x: Tensor
+            x: Union[Tensor, PairTensor]
             adj: Tensor[2, num_edges] or list of Tensor
             size: Size
             return_attention_weights (bool, optional): If set to :obj:`True`,
@@ -180,35 +180,26 @@ class HGAConv(MessagePassing):
             msg_kwargs = self.inspector.distribute('message', coll_dict)
             out = self.message(**msg_kwargs)
 
-            if self.__explain__:
-                edge_mask = self.__edge_mask__.sigmoid()
-                # Some ops add self-loops to `adj`. We need to do the
-                # same for `edge_mask` (but do not train those).
-                if out.size(self.node_dim) != edge_mask.size(0):
-                    loop = edge_mask.new_ones(size[0])
-                    edge_mask = torch.cat([edge_mask, loop], dim=0)
-                assert out.size(self.node_dim) == edge_mask.size(0)
-                out = out * edge_mask.view([-1] + [1] * (out.dim() - 1))
-
             aggr_kwargs = self.inspector.distribute('aggregate', coll_dict)
             out = self.aggregate(out, **aggr_kwargs)
-
-            update_kwargs = self.inspector.distribute('update', coll_dict)
-            return self.update(out, **update_kwargs)
+        else:
+            coll_dict = None
+        update_kwargs = self.inspector.distribute('update', coll_dict)
+        return self.update(out, **update_kwargs)
 
     def message(self,
-                x_j: Tensor,
-                alpha_j: Tensor,
-                alpha_i: OptTensor,
-                index: Tensor,
+                x: Union[Tensor, PairTensor], # PairTensor for bipartite graph
+                alpha: Tensor,
+                index: Tensor,  # column-wise index
                 ptr: OptTensor,
                 size_i: Optional[int]) -> Tensor:
-        alpha = alpha_j if alpha_i is None else alpha_j + alpha_i
         alpha = fn.leaky_relu(alpha, self.negative_slope)
         alpha = softmax(alpha, index, ptr, size_i)
         self._alpha = alpha
         alpha = fn.dropout(alpha, p=self.dropout, training=self.training)
-        return x_j * alpha.unsqueeze(-1)
+        # sparse matrix multiplication of X and A (attention matrix)
+        # h =
+        return x * alpha.unsqueeze(-1)
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
