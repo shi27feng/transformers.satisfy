@@ -19,14 +19,22 @@ def clones(module, k):
     )
 
 
-def attention(h, adj):
-    return
+def attention(adj, a_l, a_r):
+    """
+    Args:
+        adj: adjacency matrix [2, num_edges, heads]
+        a_l: Tensor           [N, heads]
+        a_r: Tensor           [N, heads]
+    """
+    if isinstance(adj, Tensor):
+        return a_l[adj[0], :] + a_r[adj[1], :]
+    a = []
+    for i in range(len(adj)):
+        a[i] = a_l[adj[i][0], i] + a_r[adj[i][1], i]
+    return a
 
 
-def self_loop_augment(x_l, x_r, size, adj):
-    num_nodes = x_l.size(0)
-    num_nodes = size[1] if size is not None else num_nodes
-    num_nodes = x_r.size(0) if x_r is not None else num_nodes
+def self_loop_augment(num_nodes, adj):
     adj, _ = remove_self_loops(adj)
     adj, _ = add_self_loops(adj, num_nodes=num_nodes)
     return adj
@@ -53,12 +61,12 @@ class HGAConv(MessagePassing):
                  bias: bool = True, **kwargs):
         super(HGAConv, self).__init__(aggr='add', node_dim=0, **kwargs)
 
-        self.in_channels = in_channels
-        self.out_channels = out_channels
         self.heads = heads
         self.concat = concat
-        self.negative_slope = negative_slope
         self.dropout = dropout
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.negative_slope = negative_slope
         self.add_self_loops = use_self_loops
 
         if isinstance(in_channels, int):
@@ -113,21 +121,26 @@ class HGAConv(MessagePassing):
         else:
             x_l, x_r = x[0], x[1]
         assert x_l.dim() == 2, 'Static graphs not supported in `HGAConv`.'
-        x_l = self.lin_l(x_l).view(-1, h, c)
+        x_l = self.lin_l(x_l).view(-1, h, c)  # dims: (N, h, c)
         alpha_l = (x_l * self.att_l).sum(dim=-1)
         if x_r is not None:
-            x_r = self.lin_r(x_r).view(-1, h, c)
-            alpha_r = (x_r * self.att_r).sum(dim=-1)
+            x_r = self.lin_r(x_r).view(-1, h, c)  # dims: (N, h, c)
+            alpha_r = (x_r * self.att_r).sum(dim=-1)  # reduce((N, h, c) x (h, c), c) = (N, h)
+        else:
+            alpha_r = (x_l * self.att_r).sum(dim=-1)
 
         assert x_l is not None
         assert alpha_l is not None
 
         if self.add_self_loops:
+            num_nodes = x_l.size(0)
+            num_nodes = size[1] if size is not None else num_nodes
+            num_nodes = x_r.size(0) if x_r is not None else num_nodes
             if isinstance(adj, Tensor):
-                adj = self_loop_augment(x_l, x_r, size, adj)
+                adj = self_loop_augment(num_nodes, adj)
             else:
                 for i in range(len(adj)):
-                    adj[i] = self_loop_augment(x_l, x_r, size, adj[i])
+                    adj[i] = self_loop_augment(num_nodes, adj[i])
 
         # propagate_type: (x: OptPairTensor, alpha: OptPairTensor)
         out = self.propagate(adj,
