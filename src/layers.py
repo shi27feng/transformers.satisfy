@@ -49,9 +49,6 @@ class HGAConv(MessagePassing):
     def _forward_unimplemented(self, *in_tensor: Any) -> None:
         pass
 
-    def message_and_aggregate(self, adj_t: SparseTensor) -> Tensor:
-        pass
-
     def __init__(self,
                  in_channels: Union[int, Tuple[int, int]],
                  out_channels: int,
@@ -174,21 +171,36 @@ class HGAConv(MessagePassing):
         x = kwargs.get('x', Pr.empty)  # OptPairTensor
         alpha = kwargs.get('alpha', Pr.empty)  # PairTensor
         score = edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1])
-        out = self.message(x, score, )
+        out = self.message_and_aggregate(adj, x=x, score=score)
 
         return self.update(out)
 
-    def message(self,
-                x: Union[Tensor, PairTensor],  # PairTensor for bipartite graph
-                adj,                           # Tensor or list(Tensor)
-                score: Tensor) -> Tensor:
-        alpha = fn.leaky_relu(score, self.negative_slope)
-        alpha = softmax(alpha, adj[1])
-        self._alpha = alpha
-        alpha = fn.dropout(alpha, p=self.dropout, training=self.training)
+    def message_and_aggregate(self,
+                              adj,     # Tensor or list(Tensor)
+                              x,       # PairTensor for bipartite graph
+                              score):  # Tensor or list(Tensor)
+        if isinstance(adj, Tensor):
+            alpha = fn.leaky_relu(score, self.negative_slope)
+            alpha = softmax(alpha, adj[1])
+            self._alpha = alpha
+            alpha = fn.dropout(alpha, p=self.dropout, training=self.training)
         # sparse matrix multiplication of X and A (attention matrix)
         # h =
+        else:
+            alpha = None
         return x * alpha.unsqueeze(-1)
+
+    # def message(self,
+    #             x: Union[Tensor, PairTensor],  # PairTensor for bipartite graph
+    #             adj,                           # Tensor or list(Tensor)
+    #             score: Tensor) -> Tensor:
+    #     alpha = fn.leaky_relu(score, self.negative_slope)
+    #     alpha = softmax(alpha, adj[1])
+    #     self._alpha = alpha
+    #     alpha = fn.dropout(alpha, p=self.dropout, training=self.training)
+    #     # sparse matrix multiplication of X and A (attention matrix)
+    #     # h =
+    #     return x * alpha.unsqueeze(-1)
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
