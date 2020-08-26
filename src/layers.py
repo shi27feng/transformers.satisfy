@@ -175,32 +175,25 @@ class HGAConv(MessagePassing):
 
         return self.update(out)
 
+    def _attention(self, adj, score):
+        alpha = fn.leaky_relu(score, self.negative_slope)
+        alpha = softmax(alpha, adj[1])
+        self._alpha = alpha
+        return fn.dropout(alpha, p=self.dropout, training=self.training)
+
     def message_and_aggregate(self,
-                              adj,     # Tensor or list(Tensor)
-                              x,       # PairTensor for bipartite graph
+                              adj,  # Tensor or list(Tensor)
+                              x,  # Union(Tensor, PairTensor) for bipartite graph
                               score):  # Tensor or list(Tensor)
         if isinstance(adj, Tensor):
-            alpha = fn.leaky_relu(score, self.negative_slope)
-            alpha = softmax(alpha, adj[1])
-            self._alpha = alpha
-            alpha = fn.dropout(alpha, p=self.dropout, training=self.training)
+            alpha = self._attention(adj, score)
         # sparse matrix multiplication of X and A (attention matrix)
         # h =
         else:
-            alpha = None
+            alpha = []
+            for i in range(self.heads):
+                alpha.append(self._attention(adj[i], score[i]))
         return x * alpha.unsqueeze(-1)
-
-    # def message(self,
-    #             x: Union[Tensor, PairTensor],  # PairTensor for bipartite graph
-    #             adj,                           # Tensor or list(Tensor)
-    #             score: Tensor) -> Tensor:
-    #     alpha = fn.leaky_relu(score, self.negative_slope)
-    #     alpha = softmax(alpha, adj[1])
-    #     self._alpha = alpha
-    #     alpha = fn.dropout(alpha, p=self.dropout, training=self.training)
-    #     # sparse matrix multiplication of X and A (attention matrix)
-    #     # h =
-    #     return x * alpha.unsqueeze(-1)
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
