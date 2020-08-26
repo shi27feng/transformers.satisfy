@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as fn
 from torch import Tensor
 from torch.nn import Parameter, Linear
+from inspect import Parameter as Pr
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
 from torch_geometric.typing import (OptTensor, PairTensor)
@@ -22,16 +23,16 @@ def clones(module, k):
 def edge_score(adj, a_l, a_r):
     """
     Args:
-        adj: adjacency matrix [heads, 2, num_edges]
+        adj: adjacency matrix [2, num_edges] or (heads, [2, num_edges])
         a_l: Tensor           [N, heads]
         a_r: Tensor           [N, heads]
     """
     if isinstance(adj, Tensor):
-        return a_l[adj[0], :] + a_r[adj[1], :]
+        return a_l[adj[0], :] + a_r[adj[1], :]  # [num_edges, heads]
     a = []
     for i in range(len(adj)):
         a[i] = a_l[adj[i][0], i] + a_r[adj[i][1], i]
-    return a
+    return a  # (heads, [num_edges, 1])
 
 
 def self_loop_augment(num_nodes, adj):
@@ -44,6 +45,7 @@ class HGAConv(MessagePassing):
     """
     Heterogeneous Graph Attention Convolution
     """
+
     def _forward_unimplemented(self, *in_tensor: Any) -> None:
         pass
 
@@ -161,40 +163,27 @@ class HGAConv(MessagePassing):
 
         if isinstance(return_attention_weights, bool):
             assert alpha is not None
-            if isinstance(adj, Tensor):
-                return out, (adj, alpha)
-            elif isinstance(adj, SparseTensor):
-                return out, adj.set_value(alpha, layout='coo')
+            return out, (adj, alpha)
         else:
             return out
 
     def propagate(self, adj, size=None, **kwargs):
+        # propagate_type: (x: OptPairTensor, alpha: PairTensor)
         size = self.__check_input__(adj, size)
 
-        if isinstance(adj, Tensor) or not self.fuse:
-            coll_dict = self.__collect__(self.__user_args__,
-                                         adj,
-                                         size,
-                                         kwargs)
+        x = kwargs.get('x', Pr.empty)  # OptPairTensor
+        alpha = kwargs.get('alpha', Pr.empty)  # PairTensor
+        score = edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1])
+        out = self.message(x, score, )
 
-            msg_kwargs = self.inspector.distribute('message', coll_dict)
-            out = self.message(**msg_kwargs)
-
-            aggr_kwargs = self.inspector.distribute('aggregate', coll_dict)
-            out = self.aggregate(out, **aggr_kwargs)
-        else:
-            coll_dict = None
-        update_kwargs = self.inspector.distribute('update', coll_dict)
-        return self.update(out, **update_kwargs)
+        return self.update(out)
 
     def message(self,
-                x: Union[Tensor, PairTensor], # PairTensor for bipartite graph
-                alpha: Tensor,
-                index: Tensor,  # column-wise index
-                ptr: OptTensor,
-                size_i: Optional[int]) -> Tensor:
-        alpha = fn.leaky_relu(alpha, self.negative_slope)
-        alpha = softmax(alpha, index, ptr, size_i)
+                x: Union[Tensor, PairTensor],  # PairTensor for bipartite graph
+                adj,                           # Tensor or list(Tensor)
+                score: Tensor) -> Tensor:
+        alpha = fn.leaky_relu(score, self.negative_slope)
+        alpha = softmax(alpha, adj[1])
         self._alpha = alpha
         alpha = fn.dropout(alpha, p=self.dropout, training=self.training)
         # sparse matrix multiplication of X and A (attention matrix)
@@ -205,4 +194,3 @@ class HGAConv(MessagePassing):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
                                              self.in_channels,
                                              self.out_channels, self.heads)
-
