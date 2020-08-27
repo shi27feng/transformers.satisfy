@@ -110,10 +110,7 @@ class HGAConv(MessagePassing):
         h, c = self.heads, self.out_channels
         assert (not isinstance(x, Tensor)) and h == len(adj), 'Number of heads is number of adjacency matrices'
 
-        x_l = None
-        x_r = None
-        alpha_l = None
-        alpha_r = None
+        x_l, x_r, alpha_l, alpha_r = None, None, None, None
 
         if isinstance(x, Tensor):
             x_l, x_r = x, None
@@ -175,20 +172,32 @@ class HGAConv(MessagePassing):
 
         return self.update(out)
 
-    def _attention(self, adj, score):
+    def _attention(self, adj, score):  # score: [num_edges, heads]
         alpha = fn.leaky_relu(score, self.negative_slope)
         alpha = softmax(alpha, adj[1])
         self._alpha = alpha
         return fn.dropout(alpha, p=self.dropout, training=self.training)
 
     def message_and_aggregate(self,
-                              adj,  # Tensor or list(Tensor)
-                              x,  # Union(Tensor, PairTensor) for bipartite graph
+                              adj,     # Tensor or list(Tensor)
+                              x,       # Union(Tensor, PairTensor) for bipartite graph
                               score):  # Tensor or list(Tensor)
+        n, c = x.size()
+        x_l, x_r, out_l, out_r = None, None, None, None
+        if isinstance(x, Tensor):
+            x_l = x
+            n, c = x.size()
+            out_l = torch.zeros((n, c, self.heads))
+        else:
+            x_l, x_r = x[0], x[1]
+            (n, c1), (m, c2) = x_l.size(), x_r.size()
+            out_l = torch.zeros((n, c1, self.heads))
+            out_r = torch.zeros((m, c2, self.heads))
+
         if isinstance(adj, Tensor):
-            alpha = self._attention(adj, score)
-        # sparse matrix multiplication of X and A (attention matrix)
-        # h =
+            alpha = self._attention(adj, score)  # [num_edges, heads]
+            # sparse matrix multiplication of X and A (attention matrix)
+            # h =
         else:
             alpha = []
             for i in range(self.heads):

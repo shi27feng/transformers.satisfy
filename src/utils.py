@@ -86,8 +86,8 @@ if __name__ == '__main__':
     with open(configs_file, 'r') as f:
         configs = json.load(f)
     pdb.set_trace()
-    filename = 'GCN_3_32_preTrue_dropFalse_yield1_08000.dat'
-    graphs = load_graph_list('graphs/' + filename)
-    graph = graphs[0]
+    f_name = 'GCN_3_32_preTrue_dropFalse_yield1_08000.dat'
+    grs = load_graph_list('graphs/' + f_name)
+    graph = grs[0]
     pdb.set_trace()
-    draw_graph_list(graphs, row=4, col=4, filename='fig/' + filename)
+    draw_graph_list(grs, row=4, col=4, filename='fig/' + f_name)
