@@ -31,4 +31,4 @@ def batched_spmm(nzt, adj, x, n=None, m=None):
         out = torch.zeros([m * heads, channels])
         for i in range(heads):
             out[m * i: m * (i + 1), :] = spmm(adj[i], nzt[:, i], num_nodes, channels, x)
-    return out.view(-1, m, channels)
+    return out.view(-1, m, channels)    # [heads, m, channels]
