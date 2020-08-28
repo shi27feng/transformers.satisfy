@@ -148,7 +148,7 @@ class HGAConv(MessagePassing):
         alpha = self._alpha
         self._alpha = None
 
-        if self.concat:
+        if self.concat:  # TODO if 'out' is Tuple(Tensor, Tensor)
             out = out.view(-1, self.heads * self.out_channels)
         else:
             out = out.mean(dim=1)
@@ -180,32 +180,38 @@ class HGAConv(MessagePassing):
         return fn.dropout(alpha, p=self.dropout, training=self.training)
 
     def message_and_aggregate(self,
-                              adj,     # Tensor or list(Tensor)
-                              x,       # Union(Tensor, PairTensor) for bipartite graph
-                              score):  # Tensor or list(Tensor)
-        n, c = x.size()
-        x_l, x_r, out_l, out_r = None, None, None, None
+                              adj,
+                              x,
+                              score):
+        """
+        Args:
+            adj:   Tensor or list(Tensor)
+            x:     Union(Tensor, PairTensor) for bipartite graph
+            score: Tensor or list(Tensor)
+        """
+        # for bipartite graph, x_l -> out_ and x_r -> out_l (interleaved)
+        x_l, x_r, out_, out_l = None, None, None, None
+        n, m = 0, 0
         if isinstance(x, Tensor):
             x_l = x
-            n, c = x.size()
         else:
             x_l, x_r = x[0], x[1]
-            (n, c1), (m, c2) = x_l.size(), x_r.size()
-            out_r = torch.zeros((m, c2, self.heads))
+            (m, c2) = x_r.size()
+            out_l = torch.zeros((m, c2, self.heads))
 
         if isinstance(adj, Tensor):
             alpha = self._attention(adj, score)  # [num_edges, heads]
-            # sparse matrix multiplication of X and A (attention matrix)
-        else:
+        else:  # adj is list of Tensor
             alpha = []
             for i in range(self.heads):
                 alpha.append(self._attention(adj[i], score[i]))
-        out_l = batched_spmm(alpha, adj, x_l)
+
+        out_ = batched_spmm(alpha, adj, x_l)
         if x_r is not None:
-            alpha = []
-            batched_transpose()
-            out_r = None
-        return out_l.permute(1, 0, 2), out_r.permute(1, 0, 2)
+            adj, alpha = batched_transpose(adj, alpha)
+            out_l = batched_spmm(alpha, adj, x_r)
+
+        return out_.permute(1, 0, 2), out_l.permute(1, 0, 2)
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
