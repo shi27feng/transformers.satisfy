@@ -1,7 +1,7 @@
 
 import torch
 from torch import Tensor
-from torch_sparse import spmm
+from torch_sparse import spmm, transpose
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 
 
@@ -25,10 +25,19 @@ def batched_spmm(nzt, adj, x, n=None, m=None):
         offset = torch.tensor([[m], [n]])
         adj_ = torch.cat([adj + offset * i for i in range(heads)], dim=1)
         nzt_ = nzt.view(1, -1)
-        out = spmm(adj_, nzt_, n * heads, channels, x_)
+        out = spmm(adj_, nzt_, m * heads, n * heads, x_)
     else:  # adj is list of adjacency matrices
         m = max([maybe_num_nodes(adj_[0], m) for adj_ in adj])
         out = torch.zeros([m * heads, channels])
         for i in range(heads):
-            out[m * i: m * (i + 1), :] = spmm(adj[i], nzt[:, i], num_nodes, channels, x)
+            out[m * i: m * (i + 1), :] = spmm(adj[i], nzt[:, i], m, num_nodes, x)
     return out.view(-1, m, channels)    # [heads, m, channels]
+
+
+def batched_transpose(adj, value):
+    """
+    Args:
+        adj: Tensor or list of Tensor
+        value: Tensor [num_edges, ]
+    """
+    return

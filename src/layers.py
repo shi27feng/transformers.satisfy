@@ -12,7 +12,7 @@ from torch_geometric.nn.inits import glorot, zeros
 from torch_geometric.typing import (OptTensor, PairTensor)
 from torch_geometric.utils import remove_self_loops, add_self_loops, softmax
 from torch_sparse import SparseTensor
-from linalg import batched_spmm
+from linalg import batched_spmm, batched_transpose
 
 
 def clones(module, k):
@@ -188,11 +188,9 @@ class HGAConv(MessagePassing):
         if isinstance(x, Tensor):
             x_l = x
             n, c = x.size()
-            out_l = torch.zeros((n, c, self.heads))
         else:
             x_l, x_r = x[0], x[1]
             (n, c1), (m, c2) = x_l.size(), x_r.size()
-            out_l = torch.zeros((n, c1, self.heads))
             out_r = torch.zeros((m, c2, self.heads))
 
         if isinstance(adj, Tensor):
@@ -202,9 +200,12 @@ class HGAConv(MessagePassing):
             alpha = []
             for i in range(self.heads):
                 alpha.append(self._attention(adj[i], score[i]))
-        out = batched_spmm(alpha, adj, x_l)
-
-        return out.permute(1, 0, 2)
+        out_l = batched_spmm(alpha, adj, x_l)
+        if x_r is not None:
+            alpha = []
+            batched_transpose()
+            out_r = None
+        return out_l.permute(1, 0, 2), out_r.permute(1, 0, 2)
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
