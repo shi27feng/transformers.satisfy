@@ -149,13 +149,21 @@ class HGAConv(MessagePassing):
         self._alpha = None
 
         if self.concat:  # TODO if 'out' is Tuple(Tensor, Tensor)
-            out = out.view(-1, self.heads * self.out_channels)
+            if isinstance(out, Tensor):
+                out = out.view(-1, self.heads * self.out_channels)
+            else:
+                out = (out[0].view(-1, self.heads * self.out_channels),
+                       out[1].view(-1, self.heads * self.out_channels))
         else:
-            out = out.mean(dim=1)
-
+            if isinstance(out, Tensor):
+                out = out.mean(dim=1)
+            else:
+                out = (out[0].mean(dim=1), out[1].mean(dim=1))
         if self.bias is not None:
-            out += self.bias
-
+            if isinstance(out, Tensor):
+                out += self.bias
+            else:
+                out = (out[0] + self.bias, out[1] + self.bias)
         if isinstance(return_attention_weights, bool):
             assert alpha is not None
             return out, (adj, alpha)
