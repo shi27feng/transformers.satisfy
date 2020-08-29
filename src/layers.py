@@ -215,11 +215,12 @@ class HGAConv(MessagePassing):
                 alpha.append(self._attention(adj[i], score[i]))
 
         out_ = batched_spmm(alpha, adj, x_l)
-        if x_r is not None:
+        if x_r is None:
+            return out_.permute(1, 0, 2)
+        else:
             adj, alpha = batched_transpose(adj, alpha)
             out_l = batched_spmm(alpha, adj, x_r)
-
-        return out_.permute(1, 0, 2), out_l.permute(1, 0, 2)
+            return out_.permute(1, 0, 2), out_l.permute(1, 0, 2)
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
