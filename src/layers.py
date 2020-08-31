@@ -1,17 +1,16 @@
 import copy
-from typing import Union, Tuple, Optional, Any
+from inspect import Parameter as Pr
+from typing import Union, Tuple, Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as fn
 from torch import Tensor
 from torch.nn import Parameter, Linear
-from inspect import Parameter as Pr
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
-from torch_geometric.typing import (OptTensor, PairTensor)
 from torch_geometric.utils import remove_self_loops, add_self_loops, softmax
-from torch_sparse import SparseTensor
+
 from linalg import batched_spmm, batched_transpose
 
 
