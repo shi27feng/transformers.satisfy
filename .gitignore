@@ -22,6 +22,11 @@ var/
 wheels/
 pip-wheel-metadata/
 share/python-wheels/
+dataset/domset/
+dataset/kclique/
+dataset/kcolor/
+dataset/kcover/
+
 *.egg-info/
 .installed.cfg
 *.egg
