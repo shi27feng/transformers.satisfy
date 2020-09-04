@@ -1,4 +1,5 @@
-﻿circuit_fault_analysis/ssa2670-130,82,327
+﻿Path,Variables,Clauses
+circuit_fault_analysis/ssa2670-130,82,327
 circuit_fault_analysis/ssa2670-141,91,377
 bmc-ibm-2/bmc-ibm-2,119,573
 mrpp/mrpp_4x4#4_4,208,1538

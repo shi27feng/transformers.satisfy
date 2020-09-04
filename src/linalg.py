@@ -17,20 +17,20 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
     heads, num_edges = nzt.size()
     num_nodes, channels = x.size()
     # preparation of data
-    out = None
+    x_ = torch.cat(heads * [x])  # duplicate x for heads times
+    nzt_ = nzt.view(1, -1)
     if isinstance(adj, Tensor):
-        x_ = torch.cat(heads * [x])  # duplicate x for heads times
         m = maybe_num_nodes(adj[0], m)
         n = maybe_num_nodes(adj[1], max(num_nodes, n))
         offset = torch.tensor([[m], [n]])
         adj_ = torch.cat([adj + offset * i for i in range(heads)], dim=1)
-        nzt_ = nzt.view(1, -1)
-        out = spmm(adj_, nzt_, m * heads, n * heads, x_)
     else:  # adj is list of adjacency matrices
+        assert heads == len(adj), "the number of heads and the number of adjacency matrices are not matched"
         m = max([maybe_num_nodes(adj_[0], m) for adj_ in adj])
-        out = torch.zeros([m * heads, channels])
-        for i in range(heads):
-            out[m * i: m * (i + 1), :] = spmm(adj[i], nzt[:, i], m, num_nodes, x)
+        n = max([maybe_num_nodes(adj_[1], n) for adj_ in adj])
+        offset = torch.tensor([[m], [n]])
+        adj_ = torch.cat([adj[i] + offset * i for i in range(heads)], dim=1)
+    out = spmm(adj_, nzt_, m * heads, n * heads, x_)
     return out.view(-1, m, channels)    # [heads, m, channels]
 
 
