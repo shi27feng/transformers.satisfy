@@ -1,4 +1,23 @@
 import os
+import sys
+
+import torch
+from torch_geometric.data import Data, DataLoader
+
+
+class CNFData(Data):
+    def __init__(self, pos_adj, neg_adj, x_s, x_t):
+        super(CNFData, self).__init__()
+        self.edge_index_pos = pos_adj
+        self.edge_index_neg = neg_adj
+        self.x_s = x_s
+        self.x_t = x_t
+
+    def __inc__(self, key, value):
+        if key in ['edge_index_pos', 'edge_index_neg']:
+            return torch.tensor([[self.x_s.size(0)], [self.x_t.size(0)]])
+        else:
+            return super(CNFData, self).__inc__(key, value)
 
 
 class CNFParser:
@@ -8,11 +27,15 @@ class CNFParser:
         self.clauses = None
         self.comments = None
         self.text = None
+        self.pyg_data = None
 
     def read(self, path):
-        if path is None or path is '':
+        if path is None or path == '':
             raise ValueError("path can't be empty")
-        self.path = path
+        if os.path.exists(path):
+            self.path = path
+        else:
+            raise IOError("file [", path, "] doesn't exist.")
         with open(self.path, 'r') as f:
             try:
                 self.text = f.read()
@@ -31,7 +54,7 @@ class CNFParser:
         self.clauses = []
         self.comments = []
         occur_list = []
-        n_remaining_clauses = 0
+        n_remaining_clauses = sys.maxsize
         for line in self.text.splitlines():
             line = line.strip()
             if not line:
@@ -40,7 +63,8 @@ class CNFParser:
                 self.comments.append(line)
             elif line.startswith('p cnf'):
                 tokens = line.split()
-                self.num_vars, n_remaining_clauses = int(tokens[2]), int(tokens[3])
+                self.num_vars, n_remaining_clauses = int(tokens[2]), \
+                    min(n_remaining_clauses, int(tokens[3]))
                 occur_list = [[] for _ in range(self.num_vars * 2 + 1)]
             elif n_remaining_clauses > 0:
                 clause = []
@@ -54,3 +78,6 @@ class CNFParser:
             else:
                 break
         # return self.num_vars, clauses, occur_list, comments
+
+    def to_pyg(self):
+        pass
