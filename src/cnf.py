@@ -10,8 +10,8 @@ class CNFData(Data):
         super(CNFData, self).__init__()
         self.edge_index_pos = pos_adj
         self.edge_index_neg = neg_adj
-        self.x_s = x_s
-        self.x_t = x_t
+        self.x_s = x_s      # variables
+        self.x_t = x_t      # clauses
 
     def __inc__(self, key, value):
         if key in ['edge_index_pos', 'edge_index_neg']:
