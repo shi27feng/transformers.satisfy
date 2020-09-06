@@ -30,6 +30,13 @@ class CNFParser:
         self.edge_index_neg = [[], []]
         self.text = None
 
+    def reset(self):
+        self.comments = []
+        self.num_variables = 0
+        self.edge_index_pos = [[], []]
+        self.edge_index_neg = [[], []]
+        self.text = None
+
     def read(self, path):
         if path is None or path == '':
             raise ValueError("path can't be empty")
@@ -45,14 +52,14 @@ class CNFParser:
 
     def __str__(self):
         return f"""Number of variables: {self.num_variables}
-        Clauses: {str(self.clauses)}
+        Positive Clauses: {str(self.edge_index_pos)}
+        Negative Clauses: {str(self.edge_index_neg)}
         Comments: {str(self.comments)}"""
 
     def parse_dimacs(self):
         if self.text is None:
             self.read(self.path)
-        self.num_variables = 0
-
+        self.reset()
         n_remaining_clauses = sys.maxsize
         clause_index = 0
         for line in self.text.splitlines():
@@ -69,10 +76,10 @@ class CNFParser:
             elif clause_index < n_remaining_clauses:
                 for literal in line.split()[:-1]:
                     literal = int(literal)
-                    if literal > 0:
+                    if literal > 0:   # positive
                         self.edge_index_pos[0].append(clause_index)
                         self.edge_index_pos[1].append(literal)
-                    else:
+                    else:   # negative
                         self.edge_index_neg[0].append(clause_index)
                         self.edge_index_neg[1].append(abs(literal))
                 clause_index += 1
