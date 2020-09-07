@@ -1,13 +1,40 @@
 from abc import ABC
 import os
 import torch
-from torch_geometric.data import Dataset
+from torch_geometric.data import (InMemoryDataset, Data, download_url,
+                                  extract_zip, extract_tar)
 
 
-class SATDataset(Dataset, ABC):
+class SATDataset(InMemoryDataset, ABC):
     """SATDataset
-
+    source:
+        1. Uniform Random-3-SAT, phase transition region, unforced filtered
+        2. DIMACS Benchmark Instances
     """
+    url = "https://www.cs.ubc.ca/~hoos/SATLIB/Benchmarks/SAT/{}.tar.gz"
+
+    datasets = {
+        'RND3SAT': {
+            'id': ['uf50-218',
+                   'uf75-325',
+                   'uf100-430',
+                   'uf125-538',
+                   'uf150-645',
+                   'uf175-753',
+                   'uf200-860',
+                   'uf225-960',
+                   'uf250-1065'],
+            'extract': extract_tar,
+            'pickle': 'rnd3sat-{}.pickle',  # '1OpV4bCHjBkdpqI6H5Mg0-BqlA2ee2eBW',
+        },
+        'DIMACS': {
+            'id': ['aim',
+                   ],
+            'extract': extract_tar,
+            'pickle': 'dimacs-{}.pickle',   # '14FDm3NSnrBvB7eNpLeGy5Bz6FjuCSF5v',
+        },
+    }
+
     def __init__(self, root, transform=None, pre_transform=None):
         super(SATDataset, self).__init__(root, transform, pre_transform)
         self.data_list = None
