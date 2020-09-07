@@ -6,6 +6,22 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
+import os.path as osp
+from os import listdir, rmdir
+from shutil import move
+
+
+def move_to_root(root):
+    for n in listdir(root):
+        p = osp.join(root, n)
+        if osp.isdir(p):
+            for fn in listdir(p):
+                try:
+                    move(osp.join(root, n, fn), osp.join(root, fn))
+                except IOError:
+                    print("cannot move file ", fn)
+            rmdir(p)
+
 
 # save a list of graphs
 def save_graph_list(graphs, filename, clean=False, has_par=False, nodes_par1_list=None, nodes_par2_list=None):

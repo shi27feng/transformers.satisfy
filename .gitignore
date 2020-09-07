@@ -26,6 +26,7 @@ dataset/domset/
 dataset/kclique/
 dataset/kcolor/
 dataset/kcover/
+dataset/raw/
 
 *.egg-info/
 .installed.cfg

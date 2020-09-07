@@ -1,6 +1,7 @@
 from abc import ABC
 import os
 import torch
+from utils import move_to_root
 from torch_geometric.data import (InMemoryDataset, Data, download_url,
                                   extract_zip, extract_tar)
 
@@ -25,19 +26,22 @@ class SATDataset(InMemoryDataset, ABC):
                    'uf225-960',
                    'uf250-1065'],
             'extract': extract_tar,
-            'pickle': 'rnd3sat-{}.pickle',  # '1OpV4bCHjBkdpqI6H5Mg0-BqlA2ee2eBW',
         },
         'DIMACS': {
             'id': ['aim',
-                   ],
+                   'jnh',
+                   'ssa'],
             'extract': extract_tar,
-            'pickle': 'dimacs-{}.pickle',   # '14FDm3NSnrBvB7eNpLeGy5Bz6FjuCSF5v',
         },
     }
 
-    def __init__(self, root, transform=None, pre_transform=None):
+    def __init__(self, root, name, transform=None, pre_transform=None):
+        self.name = name
+        assert self.name.split('/')[0] in self.datasets.keys()
         super(SATDataset, self).__init__(root, transform, pre_transform)
-        self.data_list = None
+        path = self.processed_paths
+        self._examples = None
+        self._solvable = None
 
     @property
     def raw_file_names(self):
@@ -45,16 +49,23 @@ class SATDataset(InMemoryDataset, ABC):
 
     @property
     def processed_file_names(self):
-        r"""The name of the files to find in the :obj:`self.processed_dir`
-        folder in order to skip the processing."""
-        raise NotImplementedError
+        return '{}.pt'.format(self.name.split('/')[1])
 
     def download(self):
         r"""Downloads the dataset to the :obj:`self.raw_dir` folder."""
-        raise NotImplementedError
+        name = self.name
+        path = download_url(self.url.format(name), self.raw_dir)
+        ns = self.name.split('/')
+        self.datasets[ns[0]]['extract'](path, self.raw_dir)
+        if ns[0] == list(self.datasets.keys())[0]:
+            print('unsatisfied cases ...')
+            os.unlink(path)
+            name = str(ns[0] + '/u' + ns[1])
+            path = download_url(self.url.format(name), self.raw_dir)
+            self.datasets[ns[0]]['extract'](path, self.raw_dir)
+            move_to_root(self.raw_dir)
 
     def process(self):
-        r"""Processes the dataset to the :obj:`self.processed_dir` folder."""
         raise NotImplementedError
 
     def len(self):
