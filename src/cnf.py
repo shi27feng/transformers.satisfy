@@ -38,6 +38,7 @@ class CNFParser:
         self.text = None
 
     def read(self, path):
+        self.reset()
         if path is None or path == '':
             raise ValueError("path can't be empty")
         if os.path.exists(path):
@@ -59,7 +60,6 @@ class CNFParser:
     def parse_dimacs(self):
         if self.text is None:
             self.read(self.path)
-        self.reset()
         n_remaining_clauses = sys.maxsize
         clause_index = 0
         for line in self.text.splitlines():
@@ -78,10 +78,10 @@ class CNFParser:
                     literal = int(literal)
                     if literal > 0:   # positive
                         self.edge_index_pos[0].append(clause_index)
-                        self.edge_index_pos[1].append(literal)
+                        self.edge_index_pos[1].append(literal - 1)  # start from 0
                     else:   # negative
                         self.edge_index_neg[0].append(clause_index)
-                        self.edge_index_neg[1].append(abs(literal))
+                        self.edge_index_neg[1].append(abs(literal) - 1)  # start from 0
                 clause_index += 1
             else:
                 break

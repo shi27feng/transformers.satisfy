@@ -1,6 +1,11 @@
 from abc import ABC
 import os
+import os.path as osp
+from os import listdir
+
 import torch
+
+from cnf import CNFParser
 from utils import move_to_root
 from torch_geometric.data import (InMemoryDataset, Data, download_url,
                                   extract_zip, extract_tar)
@@ -39,9 +44,8 @@ class SATDataset(InMemoryDataset, ABC):
         self.name = name
         assert self.name.split('/')[0] in self.datasets.keys()
         super(SATDataset, self).__init__(root, transform, pre_transform)
-        path = self.processed_paths
-        self._examples = None
-        self._solvable = None
+        self.bipartite_graphs = None   # bipartite graphs
+        self.is_satisfied = None   # indicator of solvability
 
     @property
     def raw_file_names(self):
@@ -66,7 +70,9 @@ class SATDataset(InMemoryDataset, ABC):
             move_to_root(self.raw_dir)
 
     def process(self):
-        raise NotImplementedError
+        parser = CNFParser()
+        for f in listdir(self.raw_dir):
+            parser.read(os.path.join(self.raw_dir, f))
 
     def len(self):
         raise NotImplementedError
