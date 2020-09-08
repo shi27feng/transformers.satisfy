@@ -28,6 +28,7 @@ class CNFParser:
         self.num_variables = 0
         self.edge_index_pos = [[], []]
         self.edge_index_neg = [[], []]
+        self.satisfied = True
         self.text = None
 
     def reset(self):

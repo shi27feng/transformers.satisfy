@@ -44,8 +44,8 @@ class SATDataset(InMemoryDataset, ABC):
         self.name = name
         assert self.name.split('/')[0] in self.datasets.keys()
         super(SATDataset, self).__init__(root, transform, pre_transform)
-        self.bipartite_graphs = None   # bipartite graphs
-        self.is_satisfied = None   # indicator of solvability
+        path = osp.join(self.processed_dir, self.processed_file_names)
+        self.data_list, self.sat = torch.load(path)
 
     @property
     def raw_file_names(self):
@@ -71,12 +71,26 @@ class SATDataset(InMemoryDataset, ABC):
 
     def process(self):
         parser = CNFParser()
-        for f in listdir(self.raw_dir):
+        fs = listdir(self.raw_dir)
+        sat = torch.ones(len(fs))
+        data_list = []
+        idx = 0
+        for f in fs:
             parser.read(os.path.join(self.raw_dir, f))
+            parser.parse_dimacs()
+            data = parser.to_bipartite()
+            if self.pre_filter is not None and not self.pre_filter(data):
+                continue
+            if self.pre_transform is not None:
+                data = self.pre_transform(data)
+            data_list.append(data)
+            if f.startswith('uu'):
+                sat[idx] = 0.0
+        torch.save([data_list, sat], osp.join(self.processed_dir,
+                                              self.processed_file_names))
 
     def len(self):
-        raise NotImplementedError
+        return len(self.data_list)
 
     def get(self, idx):
-        r"""Gets the data object at index :obj:`idx`."""
-        raise NotImplementedError
+        return self.data_list[idx], self.sat[idx]
