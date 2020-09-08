@@ -2,6 +2,8 @@ from abc import ABC
 import os
 import os.path as osp
 from os import listdir
+from tqdm import tqdm
+from time import sleep
 
 import torch
 
@@ -61,22 +63,27 @@ class SATDataset(InMemoryDataset, ABC):
         path = download_url(self.url.format(name), self.raw_dir)
         ns = self.name.split('/')
         self.datasets[ns[0]]['extract'](path, self.raw_dir)
+        os.unlink(path)
         if ns[0] == list(self.datasets.keys())[0]:
             print('unsatisfied cases ...')
-            os.unlink(path)
             name = str(ns[0] + '/u' + ns[1])
             path = download_url(self.url.format(name), self.raw_dir)
             self.datasets[ns[0]]['extract'](path, self.raw_dir)
             move_to_root(self.raw_dir)
+            os.unlink(path)
 
     def process(self):
         parser = CNFParser()
         fs = listdir(self.raw_dir)
+        pbar = tqdm(fs)
         sat = torch.ones(len(fs))
         data_list = []
         idx = 0
-        for f in fs:
-            parser.read(os.path.join(self.raw_dir, f))
+        for f in pbar:
+            sleep(1e-4)
+            pbar.set_description("processing %s" % f)
+            path = os.path.join(self.raw_dir, f)
+            parser.read(path)
             parser.parse_dimacs()
             data = parser.to_bipartite()
             if self.pre_filter is not None and not self.pre_filter(data):
@@ -86,6 +93,9 @@ class SATDataset(InMemoryDataset, ABC):
             data_list.append(data)
             if f.startswith('uu'):
                 sat[idx] = 0.0
+            elif not parser.satisfied:
+                sat[idx] = 0.0
+            idx += 1
         torch.save([data_list, sat], osp.join(self.processed_dir,
                                               self.processed_file_names))
 

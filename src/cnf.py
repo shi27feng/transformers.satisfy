@@ -68,6 +68,8 @@ class CNFParser:
             if not line:
                 continue
             elif line[0] == 'c':
+                if "Not Satisfiable" in line:
+                    self.satisfied = False
                 self.comments.append(line)
             elif line.startswith('p cnf'):
                 tokens = line.split()
