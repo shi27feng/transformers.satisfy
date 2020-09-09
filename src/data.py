@@ -47,7 +47,7 @@ class SATDataset(InMemoryDataset, ABC):
         assert self.name.split('/')[0] in self.datasets.keys()
         super(SATDataset, self).__init__(root, transform, pre_transform)
         path = osp.join(self.processed_dir, self.processed_file_names)
-        self.data_list, self.sat = torch.load(path)
+        self.data, self.sat = torch.load(path)
 
     @property
     def raw_file_names(self):
@@ -56,6 +56,12 @@ class SATDataset(InMemoryDataset, ABC):
     @property
     def processed_file_names(self):
         return '{}.pt'.format(self.name.split('/')[1])
+
+    @property
+    def num_node_features(self):
+        r"""Returns the number of features per node in the dataset."""
+        return self.data[0].x_s.num_node_features, \
+            self.data[0].x_t.num_node_features
 
     def download(self):
         r"""Downloads the dataset to the :obj:`self.raw_dir` folder."""
@@ -100,7 +106,7 @@ class SATDataset(InMemoryDataset, ABC):
                                               self.processed_file_names))
 
     def len(self):
-        return len(self.data_list)
+        return len(self.data)
 
     def get(self, idx):
-        return self.data_list[idx], self.sat[idx]
+        return self.data[idx], self.sat[idx]

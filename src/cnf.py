@@ -19,6 +19,14 @@ class BipartiteData(Data):
         else:
             return super(BipartiteData, self).__inc__(key, value)
 
+    @property
+    def num_node_features(self):
+        return self.x_s.size(1), self.x_t.size(1)
+
+    @property
+    def num_nodes(self):
+        return self.x_s.size(0), self.x_t.size(0)
+
 
 class CNFParser:
     def __init__(self):
