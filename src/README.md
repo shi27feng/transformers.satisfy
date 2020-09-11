@@ -1,10 +1,16 @@
-## Data and DataLoader
-Dataset are automatically downloaded from [SATLIB](https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html)
-- Uniform Random 3-SAT (RND3SAT)
-- DIMACS Benchmark Instances (DIMACS)
+# Transformers Satisfy
 
-Example:
+## Data and DataLoader
+
+Dataset are automatically downloaded from [SATLIB](https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html)
+
+    - Uniform Random 3-SAT (RND3SAT)
+    - DIMACS Benchmark Instances (DIMACS)
+
+### Example
+
 ```python
+# How to use SATDataset
 from data import SATDataset
 ds = SATDataset('dataset', 'RND3SAT/uf50-218')
 
