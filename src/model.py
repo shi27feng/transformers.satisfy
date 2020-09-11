@@ -51,7 +51,7 @@ class Decoder(nn.Module, ABC):
 
 
 class DecoderLayer(nn.Module, ABC):
-    """Decoder is made up of three sublayers, self-attn, src-attn, and feed forward (defined below)"""
+    """Decoder is made up of three sub-layers, self-attn, src-attn, and feed forward (defined below)"""
 
     def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
         super(DecoderLayer, self).__init__()
