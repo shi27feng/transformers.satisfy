@@ -6,26 +6,26 @@ from torch_geometric.data import Data, DataLoader
 
 
 class BipartiteData(Data):
-    def __init__(self, pos_adj, neg_adj, x_s, x_t):
+    def __init__(self, pos_adj, neg_adj, xv, xc):
         super(BipartiteData, self).__init__()
         self.edge_index_pos = pos_adj
         self.edge_index_neg = neg_adj
-        self.x_s = x_s      # variables
-        self.x_t = x_t      # clauses
+        self.xv = xv      # variables
+        self.xc = xc      # clauses
 
     def __inc__(self, key, value):
         if key in ['edge_index_pos', 'edge_index_neg']:
-            return torch.tensor([[self.x_s.size(0)], [self.x_t.size(0)]])
+            return torch.tensor([[self.xv.size(0)], [self.xc.size(0)]])
         else:
             return super(BipartiteData, self).__inc__(key, value)
 
     @property
     def num_node_features(self):
-        return self.x_s.size(1), self.x_t.size(1)
+        return self.xv.size(1), self.xc.size(1)
 
     @property
     def num_nodes(self):
-        return self.x_s.size(0), self.x_t.size(0)
+        return self.xv.size(0), self.xc.size(0)
 
 
 class CNFParser:
