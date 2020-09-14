@@ -9,6 +9,13 @@ import numpy as np
 import os.path as osp
 from os import listdir, rmdir
 from shutil import move
+from torch_geometric.utils import remove_self_loops, add_self_loops
+
+
+def self_loop_augment(num_nodes, adj):
+    adj, _ = remove_self_loops(adj)
+    adj, _ = add_self_loops(adj, num_nodes=num_nodes)
+    return adj
 
 
 def move_to_root(root):

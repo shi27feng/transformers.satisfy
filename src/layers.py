@@ -10,9 +10,10 @@ from torch import Tensor
 from torch.nn import Parameter, Linear
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
-from torch_geometric.utils import remove_self_loops, add_self_loops, softmax
+from torch_geometric.utils import softmax
 
 from linalg import batched_spmm, batched_transpose
+from utils import self_loop_augment
 
 
 def clones(module, k):
@@ -23,16 +24,16 @@ def clones(module, k):
 
 class LayerNorm(nn.Module, ABC):
     """Construct a layer-norm module (See citation for details)."""
-    def __init__(self, features, eps=1e-6):
+    def __init__(self, feat_dim, eps=1e-6):
         super(LayerNorm, self).__init__()
-        self.a_2 = nn.Parameter(torch.ones(features))
-        self.b_2 = nn.Parameter(torch.zeros(features))
+        self.alpha = nn.Parameter(torch.ones(feat_dim))
+        self.beta = nn.Parameter(torch.zeros(feat_dim))
         self.eps = eps
 
     def forward(self, x):
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
-        return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
+        return self.alpha * (x - mean) / (std + self.eps) + self.beta
 
 
 class EncoderLayer(nn.Module, ABC):
@@ -44,16 +45,18 @@ class EncoderLayer(nn.Module, ABC):
         self.sublayer = clones(SublayerConnection(size, dropout), 2)
         self.size = size
 
-    def forward(self, x, mask):
-        """Follow Figure 1 (left) for connections."""
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
-        return self.sublayer[1](x, self.feed_forward)
+    # def forward(self, x, mask):
+    #     """Follow Figure 1 (left) for connections."""
+    #     x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
+    #     return self.sublayer[1](x, self.feed_forward)
 
 
 class DecoderLayer(nn.Module, ABC):
     """Decoder is made up of three sub-layers, self-attn, src-attn, and feed forward (defined below)"""
 
     def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
+        """
+        """
         super(DecoderLayer, self).__init__()
         self.size = size
         self.self_attn = self_attn
@@ -61,12 +64,12 @@ class DecoderLayer(nn.Module, ABC):
         self.feed_forward = feed_forward
         self.sublayer = clones(SublayerConnection(size, dropout), 3)
 
-    def forward(self, x, memory, src_mask, tgt_mask):
-        """Follow Figure 1 (right) for connections."""
-        m = memory
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
-        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
-        return self.sublayer[2](x, self.feed_forward)
+    # def forward(self, x, memory, src_mask, tgt_mask):
+    #     """Follow Figure 1 (right) for connections."""
+    #     m = memory
+    #     x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
+    #     x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
+    #     return self.sublayer[2](x, self.feed_forward)
 
 
 class SublayerConnection(nn.Module, ABC):
@@ -82,27 +85,6 @@ class SublayerConnection(nn.Module, ABC):
     def forward(self, x, sublayer):
         """Apply residual connection to any sublayer function that maintains the same size."""
         return x + self.dropout(sublayer(self.norm(x)))
-
-
-def edge_score(adj, a_l, a_r):
-    """
-    Args:
-        adj: adjacency matrix [2, num_edges] or (heads, [2, num_edges])
-        a_l: Tensor           [N, heads]
-        a_r: Tensor           [N, heads]
-    """
-    if isinstance(adj, Tensor):
-        return a_l[adj[0], :] + a_r[adj[1], :]  # [num_edges, heads]
-    a = []
-    for i in range(len(adj)):
-        a[i] = a_l[adj[i][0], i] + a_r[adj[i][1], i]
-    return a  # (heads, [num_edges, 1])
-
-
-def self_loop_augment(num_nodes, adj):
-    adj, _ = remove_self_loops(adj)
-    adj, _ = add_self_loops(adj, num_nodes=num_nodes)
-    return adj
 
 
 class HGAConv(MessagePassing):
@@ -159,6 +141,21 @@ class HGAConv(MessagePassing):
         glorot(self.att_l)
         glorot(self.att_r)
         zeros(self.bias)
+
+    @staticmethod
+    def edge_score(adj, a_l, a_r):
+        """
+        Args:
+            adj: adjacency matrix [2, num_edges] or (heads, [2, num_edges])
+            a_l: Tensor           [N, heads]
+            a_r: Tensor           [N, heads]
+        """
+        if isinstance(adj, Tensor):
+            return a_l[adj[0], :] + a_r[adj[1], :]  # [num_edges, heads]
+        a = []
+        for i in range(len(adj)):
+            a[i] = a_l[adj[i][0], i] + a_r[adj[i][1], i]
+        return a  # (heads, [num_edges, 1])
 
     def forward(self, x, adj, size=None, return_attention_weights=None):
         """
@@ -239,7 +236,7 @@ class HGAConv(MessagePassing):
 
         x = kwargs.get('x', Pr.empty)  # OptPairTensor
         alpha = kwargs.get('alpha', Pr.empty)  # PairTensor
-        score = edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1])
+        score = self.edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1])
         out = self.message_and_aggregate(adj, x=x, score=score)
 
         return self.update(out)
