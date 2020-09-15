@@ -38,21 +38,27 @@ class LayerNorm(nn.Module, ABC):
 
 class EncoderLayer(nn.Module, ABC):
     """Encoder is made up of two sub-layers, self-attn and feed forward (defined below)"""
-    def __init__(self, size, self_attn, feed_forward, dropout):
+    def __init__(self, size, feed_forward, dropout, self_attn=None):
         super(EncoderLayer, self).__init__()
-        self.self_attn = self_attn
+
+        self.literals_weights = nn.Parameter(torch.ones(4))  # for 4 types
+        self.clauses_weights = nn.Parameter(torch.ones(4))  # for 4 types
+
+        self.self_attn_lit = self_attn
+        self.self_attn_cls = self_attn
         self.feed_forward = feed_forward
         self.sublayer = clones(SublayerConnection(size, dropout), 2)
         self.size = size
 
-    def forward(self, x, mask):
+    def forward(self, x):
         """Follow Figure 1 (left) for connections."""
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
+        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x))
         return self.sublayer[1](x, self.feed_forward)
 
 
 class DecoderLayer(nn.Module, ABC):
-    """Decoder is made up of three sub-layers, self-attn, src-attn, and feed forward (defined below)"""
+    """Decoder is made up of three sub-layers:
+        self-attn, src-attn, and feed forward (defined below)"""
 
     def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
         """

@@ -25,18 +25,15 @@ class Encoder(nn.Module, ABC):
         self.cached_lit_neg_pos = None
         self.cached_lit_neg_neg = None
 
-        self.literals_weights = nn.Parameter(torch.ones(4))  # for 4 types
-        self.clauses_weights = nn.Parameter(torch.ones(4))  # for 4 types
-
         self.layers = clones(layer, num_layers)
         self.norm = LayerNorm(layer.size)
         self._meta_paths_(adj_pos=adj_pos, adj_neg=adj_neg)
 
-    # def forward(self, x, mask):
-    #     """Pass the input (and mask) through each layer in turn."""
-    #     for layer in self.layers:
-    #         x = layer(x, mask)
-    #     return self.norm(x)
+    def forward(self, xv, xc):
+        """Pass the input (and mask) through each layer in turn."""
+        for layer in self.layers:
+            x = layer(xv, xc)
+        return self.norm(xv, xc)
 
     def _meta_paths_(self, adj_pos, adj_neg):
         if self.cached_adj is not None:
@@ -56,6 +53,7 @@ class Encoder(nn.Module, ABC):
 
     @staticmethod
     def _cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n):
+        # cross product: $A \times A^T$
         return spspmm(adj_pos, val_pos, adj_pos_t, val_pos, m, n, m), \
                spspmm(adj_pos, val_pos, adj_neg_t, val_neg, m, n, m), \
                spspmm(adj_neg, val_neg, adj_pos_t, val_pos, m, n, m), \
