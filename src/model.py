@@ -48,15 +48,18 @@ class Encoder(nn.Module, ABC):
         adj_pos_t, _ = transpose(adj_pos, val_pos, m, n)
         adj_neg_t, _ = transpose(adj_neg, val_pos, m, n)
 
-        self.cached_cls_pos_pos, _ = spspmm(adj_pos, val_pos, adj_pos_t, val_pos, m, n, m)
-        self.cached_cls_pos_neg, _ = spspmm(adj_pos, val_pos, adj_neg_t, val_neg, m, n, m)
-        self.cached_cls_neg_pos, _ = spspmm(adj_neg, val_neg, adj_pos_t, val_pos, m, n, m)
-        self.cached_cls_neg_neg, _ = spspmm(adj_neg, val_neg, adj_neg_t, val_neg, m, n, m)
+        self.cached_cls_pos_pos, self.cached_cls_pos_neg, self.cached_cls_neg_pos, self.cached_cls_neg_neg = \
+            self._cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n)
 
-        self.cached_lit_pos_pos, _ = spspmm(adj_pos_t, val_pos, adj_pos, val_pos, n, m, n)
-        self.cached_lit_pos_neg, _ = spspmm(adj_pos_t, val_pos, adj_neg, val_neg, n, m, n)
-        self.cached_lit_neg_pos, _ = spspmm(adj_neg_t, val_neg, adj_pos, val_pos, n, m, n)
-        self.cached_lit_neg_neg, _ = spspmm(adj_neg_t, val_neg, adj_neg, val_neg, n, m, n)
+        self.cached_lit_pos_pos, self.cached_lit_pos_neg, self.cached_lit_neg_pos, self.cached_lit_neg_neg = \
+            self._cross_product(adj_pos_t, adj_pos, adj_neg_t, adj_neg, val_pos, val_neg, n, m)
+
+    @staticmethod
+    def _cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n):
+        return spspmm(adj_pos, val_pos, adj_pos_t, val_pos, m, n, m), \
+               spspmm(adj_pos, val_pos, adj_neg_t, val_neg, m, n, m), \
+               spspmm(adj_neg, val_neg, adj_pos_t, val_pos, m, n, m), \
+               spspmm(adj_neg, val_neg, adj_neg_t, val_neg, m, n, m)
 
     def preprocess(self, i):
         layer = self.layers[i]
