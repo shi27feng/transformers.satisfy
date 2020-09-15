@@ -24,10 +24,10 @@ def clones(module, k):
 
 class LayerNorm(nn.Module, ABC):
     """Construct a layer-norm module (See citation for details)."""
-    def __init__(self, feat_dim, eps=1e-6):
+    def __init__(self, in_channels, eps=1e-6):
         super(LayerNorm, self).__init__()
-        self.alpha = nn.Parameter(torch.ones(feat_dim))
-        self.beta = nn.Parameter(torch.zeros(feat_dim))
+        self.alpha = nn.Parameter(torch.ones(in_channels))
+        self.beta = nn.Parameter(torch.zeros(in_channels))
         self.eps = eps
 
     def forward(self, x):
@@ -45,10 +45,10 @@ class EncoderLayer(nn.Module, ABC):
         self.sublayer = clones(SublayerConnection(size, dropout), 2)
         self.size = size
 
-    # def forward(self, x, mask):
-    #     """Follow Figure 1 (left) for connections."""
-    #     x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
-    #     return self.sublayer[1](x, self.feed_forward)
+    def forward(self, x, mask):
+        """Follow Figure 1 (left) for connections."""
+        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
+        return self.sublayer[1](x, self.feed_forward)
 
 
 class DecoderLayer(nn.Module, ABC):
@@ -64,12 +64,12 @@ class DecoderLayer(nn.Module, ABC):
         self.feed_forward = feed_forward
         self.sublayer = clones(SublayerConnection(size, dropout), 3)
 
-    # def forward(self, x, memory, src_mask, tgt_mask):
-    #     """Follow Figure 1 (right) for connections."""
-    #     m = memory
-    #     x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
-    #     x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
-    #     return self.sublayer[2](x, self.feed_forward)
+    def forward(self, x, memory, src_mask, tgt_mask):
+        """Follow Figure 1 (right) for connections."""
+        m = memory
+        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
+        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
+        return self.sublayer[2](x, self.feed_forward)
 
 
 class SublayerConnection(nn.Module, ABC):
