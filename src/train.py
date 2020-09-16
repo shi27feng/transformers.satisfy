@@ -10,6 +10,7 @@ from loss import LabelSmoothing, SimpleLossCompute
 from models import make_model
 from optimizer import get_std_opt
 from data import SATDataset
+from torch_geometric. data import DataLoader
 
 def run_epoch(data_iter, model, loss_compute, is_train=True):
     for i, g in tqdm(enumerate(data_iter)):
