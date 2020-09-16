@@ -31,9 +31,20 @@ class Encoder(nn.Module, ABC):
 
     def forward(self, xv, xc):
         """Pass the input (and mask) through each layer in turn."""
+        meta_paths_lit = [self.cached_lit_pos_pos,
+                          self.cached_lit_pos_neg,
+                          self.cached_lit_neg_pos,
+                          self.cached_lit_neg_neg]
+        meta_paths_cls = [self.cached_cls_pos_pos,
+                          self.cached_cls_pos_neg,
+                          self.cached_cls_neg_pos,
+                          self.cached_cls_neg_neg]
         for layer in self.layers:
-            x = layer(xv, xc)
-        return self.norm(xv, xc)
+            x = layer(xv,
+                      xc,
+                      meta_paths_lit, meta_paths_cls,
+                      self.adj_pos, self.adj_neg)
+        return self.norm(xv), self.norm(xc)
 
     def _meta_paths_(self, adj_pos, adj_neg):
         if self.cached_adj is not None:
@@ -65,23 +76,27 @@ class Decoder(nn.Module, ABC):
 
     def __init__(self, layer, adj_pos, adj_neg, num_layers):
         super(Decoder, self).__init__()
+        self.adj_pos = adj_pos
+        self.adj_neg = adj_neg
         self.layers = clones(layer, num_layers)
         self.norm = LayerNorm(layer.size)
 
-    # def forward(self, x, memory, src_mask, tgt_mask):
-    #     for layer in self.layers:
-    #         x = layer(x, memory, src_mask, tgt_mask)
-    #     return self.norm(x)
+    def forward(self, xv, xc):
+        for layer in self.layers:
+            x = layer(xv, xc, self.adj_pos, self.adj_neg)
+        return self.norm(xv), self.norm(xc)
 
 
 class GraphTransformer(nn.Module, ABC):
+
     def __init__(self, encoder, decoder):
         super(GraphTransformer, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, bipartite):
+    def forward(self):
         # build encoders
-        for i in range(self.encoder.num_layers):
-            preprocess = self.encoder.preprocess(i)
-            postprocess = self.encoder.postprocess(i)
+        return
+
+    def encode(self):
+        return self.encoder()

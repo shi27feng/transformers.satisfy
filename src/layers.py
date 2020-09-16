@@ -42,10 +42,10 @@ class SublayerConnection(nn.Module, ABC):
     Note for code simplicity we apply the norm first as opposed to last.
     """
 
-    def __init__(self, size, dropout):
+    def __init__(self, size, drop_rate):
         super(SublayerConnection, self).__init__()
         self.norm = LayerNorm(size)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(drop_rate)
 
     def forward(self, x, sublayer):
         """Apply residual connection to any sublayer function that maintains the same size."""
@@ -59,7 +59,7 @@ class SublayerConnection(nn.Module, ABC):
 
 class EncoderLayer(nn.Module, ABC):
     """Encoder is made up of two sub-layers, self-attn and feed forward (defined below)"""
-    def __init__(self, args, dropout):
+    def __init__(self, args):
         super(EncoderLayer, self).__init__()
         
         # weights for meta-paths
@@ -71,8 +71,8 @@ class EncoderLayer(nn.Module, ABC):
         self.self_cls_attentions = clones(HGAConv(
             args.in_channels, args.out_channels, heads=args.self_att_heads), args.num_meta_paths)
         
-        self.sublayer_lit = SublayerConnection(args.out_channels, dropout)
-        self.sublayer_cls = SublayerConnection(args.out_channels, dropout)
+        self.sublayer_lit = SublayerConnection(args.out_channels, args.drop_rate)
+        self.sublayer_cls = SublayerConnection(args.out_channels, args.drop_rate)
         self.cross_attention_pos = HGAConv((args.out_channels, args.out_channels),
                                            args.out_channels, heads=args.self_att_heads)
         self.cross_attention_neg = HGAConv((args.out_channels, args.out_channels),
@@ -120,7 +120,7 @@ class DecoderLayer(nn.Module, ABC):
         xv_pos, xc_pos = self.sublayer[0]((xv, xc), lambda x: self.attn_pos(x, adj_pos))
         xv_neg, xc_neg = self.sublayer[1]((xv, xc), lambda x: self.attn_neg(x, adj_neg))
         return self.sublayer[2](xv_pos + xv_neg, self.feed_forward), \
-               self.sublayer[3](xc_pos + xc_neg, self.feed_forward)
+            self.sublayer[3](xc_pos + xc_neg, self.feed_forward)
 
 
 class HGAConv(MessagePassing):
