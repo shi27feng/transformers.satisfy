@@ -1,9 +1,10 @@
+import copy
 from abc import ABC
 
 import torch
 import torch.nn as nn
 
-from layers import clones, LayerNorm, SublayerConnection
+from layers import clones, LayerNorm, SublayerConnection, EncoderLayer, DecoderLayer
 from torch_sparse import spspmm, transpose
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 
@@ -74,16 +75,14 @@ class Encoder(nn.Module, ABC):
 class Decoder(nn.Module, ABC):
     """Generic N layer decoder with masking."""
 
-    def __init__(self, layer, adj_pos, adj_neg, num_layers):
+    def __init__(self, layer, num_layers):
         super(Decoder, self).__init__()
-        self.adj_pos = adj_pos
-        self.adj_neg = adj_neg
         self.layers = clones(layer, num_layers)
         self.norm = LayerNorm(layer.size)
 
-    def forward(self, xv, xc):
+    def forward(self, xv, xc, adj_pos, adj_neg):
         for layer in self.layers:
-            x = layer(xv, xc, self.adj_pos, self.adj_neg)
+            x = layer(xv, xc, adj_pos, adj_neg)
         return self.norm(xv), self.norm(xc)
 
 
@@ -94,9 +93,29 @@ class GraphTransformer(nn.Module, ABC):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self):
+    def forward(self, xv, xc, adj_pos, adj_neg):
         # build encoders
-        return
+        xv, xc = self.encode(xv, xc)
+        return self.decode(xv, xc, adj_pos, adj_neg)
 
-    def encode(self):
-        return self.encoder()
+    def encode(self, xv, xc):
+        return self.encoder(xv, xc)
+
+    def decode(self, xv, xc, adj_pos, adj_neg):
+        return self.decoder(xv, xc, adj_pos, adj_neg)
+
+
+def make_model(xv, xc, adj_pos, adj_neg, args):
+    """Helper: Construct a model from hyperparameters."""
+    c = copy.deepcopy
+    ff = nn.Linear(args.in_channels, args.out_channels)
+    model = GraphTransformer(
+        Encoder(EncoderLayer(args), adj_pos, adj_neg, args.num_layers),
+        Decoder(DecoderLayer(args, c(ff)), args.num_layers))
+
+    # This was important from their code.
+    # Initialize parameters with Glorot / fan_avg.
+    for p in model.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform(p)
+    return model

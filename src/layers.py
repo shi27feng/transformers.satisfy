@@ -106,14 +106,15 @@ class EncoderLayer(nn.Module, ABC):
 class DecoderLayer(nn.Module, ABC):
     """Decoder is made of self-attn, src-attn, and feed forward (defined below)"""
 
-    def __init__(self, args, attn_pos, attn_neg, feed_forward, dropout):
+    def __init__(self, args, feed_forward):
         super(DecoderLayer, self).__init__()
         self.args = args
         self.attn_pos = HGAConv((args.out_channels, args.out_channels),
                                 args.out_channels, heads=args.self_att_heads)
-        self.attn_neg = attn_neg
+        self.attn_neg = HGAConv((args.out_channels, args.out_channels),
+                                args.out_channels, heads=args.self_att_heads)
         self.feed_forward = feed_forward
-        self.sublayer = clones(SublayerConnection(args.out_channels, dropout), 4)
+        self.sublayer = clones(SublayerConnection(args.out_channels, args.drop_rate), 4)
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         """Follow Figure 1 (right) for connections."""
