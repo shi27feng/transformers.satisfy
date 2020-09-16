@@ -7,8 +7,7 @@ import numpy as np
 import random
 
 from loss import LabelSmoothing, SimpleLossCompute
-from modules import make_model
-from dgl.contrib.transformer import get_dataset, GraphPool
+from models import make_model
 from optimizer import get_std_opt
 from data import SATDataset
 
