@@ -59,37 +59,12 @@ class Encoder(nn.Module, ABC):
                spspmm(adj_neg, val_neg, adj_pos_t, val_pos, m, n, m), \
                spspmm(adj_neg, val_neg, adj_neg_t, val_neg, m, n, m)
 
-    def preprocess(self, i):
-        layer = self.layers[i]
-
-        def func(nodes):
-            x = nodes.data['x']
-            norm_x = layer.sublayer[0].norm(x)
-            return layer.self_attn.get(norm_x)
-
-        return func
-
-    def postprocess(self, i):
-        layer = self.layers[i]
-
-        def func(nodes):
-            x, wv, z = nodes.data['x'], nodes.data['wv'], nodes.data['z']
-            o = layer.self_attn.get_o(wv / z)
-            x = x + layer.sublayer[0].dropout(o)
-            x = layer.sublayer[1](x, layer.feed_forward)
-            return {'x': x if i < self.N - 1 else self.norm(x)}
-
-        return func
-
 
 class Decoder(nn.Module, ABC):
     """Generic N layer decoder with masking."""
 
     def __init__(self, layer, adj_pos, adj_neg, num_layers):
         super(Decoder, self).__init__()
-        self.cached_adj = [adj_pos, adj_neg]
-        self.cached_pos_pos, self.cached_pos_neg, \
-        self.cached_neg_pos, self.cached_neg_neg = None, None, None, None
         self.layers = clones(layer, num_layers)
         self.norm = LayerNorm(layer.size)
 

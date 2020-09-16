@@ -36,53 +36,12 @@ class LayerNorm(nn.Module, ABC):
         return self.alpha * (x - mean) / (std + self.eps) + self.beta
 
 
-class EncoderLayer(nn.Module, ABC):
-    """Encoder is made up of two sub-layers, self-attn and feed forward (defined below)"""
-    def __init__(self, size, feed_forward, dropout, self_attn=None):
-        super(EncoderLayer, self).__init__()
-
-        self.literals_weights = nn.Parameter(torch.ones(4))  # for 4 types
-        self.clauses_weights = nn.Parameter(torch.ones(4))  # for 4 types
-
-        self.self_attn_lit = self_attn
-        self.self_attn_cls = self_attn
-        self.feed_forward = feed_forward
-        self.sublayer = clones(SublayerConnection(size, dropout), 2)
-        self.size = size
-
-    def forward(self, x):
-        """Follow Figure 1 (left) for connections."""
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x))
-        return self.sublayer[1](x, self.feed_forward)
-
-
-class DecoderLayer(nn.Module, ABC):
-    """Decoder is made up of three sub-layers:
-        self-attn, src-attn, and feed forward (defined below)"""
-
-    def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
-        """
-        """
-        super(DecoderLayer, self).__init__()
-        self.size = size
-        self.self_attn = self_attn
-        self.src_attn = src_attn
-        self.feed_forward = feed_forward
-        self.sublayer = clones(SublayerConnection(size, dropout), 3)
-
-    def forward(self, x, memory, src_mask, tgt_mask):
-        """Follow Figure 1 (right) for connections."""
-        m = memory
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
-        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
-        return self.sublayer[2](x, self.feed_forward)
-
-
 class SublayerConnection(nn.Module, ABC):
     """
     A residual connection followed by a layer norm.
     Note for code simplicity we apply the norm first as opposed to last.
     """
+
     def __init__(self, size, dropout):
         super(SublayerConnection, self).__init__()
         self.norm = LayerNorm(size)
@@ -90,7 +49,78 @@ class SublayerConnection(nn.Module, ABC):
 
     def forward(self, x, sublayer):
         """Apply residual connection to any sublayer function that maintains the same size."""
-        return x + self.dropout(sublayer(self.norm(x)))
+        if x is Tensor:
+            return x + self.dropout(sublayer(self.norm(x)))
+        else:
+            xv, xc = x
+            xv, xc = sublayer((self.norm(xv), self.norm(xc)))
+            return self.dropout(xv) + x[0], self.dropout(xc) + x[1]
+
+
+class EncoderLayer(nn.Module, ABC):
+    """Encoder is made up of two sub-layers, self-attn and feed forward (defined below)"""
+    def __init__(self, args, dropout):
+        super(EncoderLayer, self).__init__()
+        
+        # weights for meta-paths
+        self.lit_path_weights = nn.Parameter(torch.ones(args.num_meta_paths))
+        self.cls_path_weights = nn.Parameter(torch.ones(args.num_meta_paths))
+
+        self.self_lit_attentions = clones(HGAConv(
+            args.in_channels, args.out_channels, heads=args.self_att_heads), args.num_meta_paths)
+        self.self_cls_attentions = clones(HGAConv(
+            args.in_channels, args.out_channels, heads=args.self_att_heads), args.num_meta_paths)
+        
+        self.sublayer_lit = SublayerConnection(args.out_channels, dropout)
+        self.sublayer_cls = SublayerConnection(args.out_channels, dropout)
+        self.cross_attention_pos = HGAConv((args.out_channels, args.out_channels),
+                                           args.out_channels, heads=args.self_att_heads)
+        self.cross_attention_neg = HGAConv((args.out_channels, args.out_channels),
+                                           args.out_channels, heads=args.self_att_heads)
+        self.args = args
+
+    @staticmethod
+    def _attention_meta_path(x, meta_paths, layers, path_weights):
+        assert len(layers) == len(meta_paths), "the length should match"
+        res = torch.zeros(x.shape)
+        for i in range(len(layers)):  # they are not sequential, but in reduction mode
+            res += path_weights[i] * layers[i](x, meta_paths[i])
+        return res
+
+    def forward(self, xv, xc, meta_paths_lit, meta_paths_cls, adj_pos, adj_neg):
+        # xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.lit_path_weights)
+        # xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.cls_path_weights)
+        xv = self.sublayer_lit(xv, lambda x: self._attention_meta_path(x,
+                                                                       meta_paths_lit,
+                                                                       self.self_lit_attentions,
+                                                                       self.lit_path_weights))
+        xc = self.sublayer_cls(xc, lambda x: self._attention_meta_path(x,
+                                                                       meta_paths_cls,
+                                                                       self.self_cls_attentions,
+                                                                       self.cls_path_weights))
+        xv_pos, xc_pos = self.cross_attention_pos((xv, xc), adj_pos)
+        xv_neg, xc_neg = self.cross_attention_neg((xv, xc), adj_neg)
+        return xv_pos + xv_neg, xc_pos + xc_neg   # TODO is xv_pos + xv_neg appropriate?
+
+
+class DecoderLayer(nn.Module, ABC):
+    """Decoder is made of self-attn, src-attn, and feed forward (defined below)"""
+
+    def __init__(self, args, attn_pos, attn_neg, feed_forward, dropout):
+        super(DecoderLayer, self).__init__()
+        self.args = args
+        self.attn_pos = HGAConv((args.out_channels, args.out_channels),
+                                args.out_channels, heads=args.self_att_heads)
+        self.attn_neg = attn_neg
+        self.feed_forward = feed_forward
+        self.sublayer = clones(SublayerConnection(args.out_channels, dropout), 4)
+
+    def forward(self, xv, xc, adj_pos, adj_neg):
+        """Follow Figure 1 (right) for connections."""
+        xv_pos, xc_pos = self.sublayer[0]((xv, xc), lambda x: self.attn_pos(x, adj_pos))
+        xv_neg, xc_neg = self.sublayer[1]((xv, xc), lambda x: self.attn_neg(x, adj_neg))
+        return self.sublayer[2](xv_pos + xv_neg, self.feed_forward), \
+               self.sublayer[3](xc_pos + xc_neg, self.feed_forward)
 
 
 class HGAConv(MessagePassing):
