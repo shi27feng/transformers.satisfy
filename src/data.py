@@ -109,4 +109,4 @@ class SATDataset(InMemoryDataset, ABC):
         return len(self.data)
 
     def get(self, idx):
-        return self.data[idx], self.sat[idx]
+        return self.data[idx]  # , self.sat[idx]

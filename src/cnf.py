@@ -23,9 +23,9 @@ class BipartiteData(Data):
     def num_node_features(self):
         return self.xv.size(1), self.xc.size(1)
 
-    @property
-    def num_nodes(self):
-        return self.xv.size(0), self.xc.size(0)
+    # @property   # TODO this one causes problem
+    # def num_nodes(self):
+    #     return self.xv.size(0), self.xc.size(0)
 
 
 class CNFParser:
