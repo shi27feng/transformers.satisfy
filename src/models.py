@@ -12,9 +12,9 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 class Encoder(nn.Module, ABC):
     """Core encoder is a stack of N layers"""
 
-    def __init__(self, layer, adj_pos, adj_neg, num_layers):
+    def __init__(self, layer, num_layers):
         super(Encoder, self).__init__()
-        self.cached_adj = [adj_pos, adj_neg]
+        self.cached_adj = None
 
         self.cached_cls_pos_pos = None
         self.cached_cls_pos_neg = None
@@ -28,10 +28,15 @@ class Encoder(nn.Module, ABC):
 
         self.layers = clones(layer, num_layers)
         self.norm = LayerNorm(layer.size)
-        self._meta_paths_(adj_pos=adj_pos, adj_neg=adj_neg)
 
-    def forward(self, xv, xc):
-        """Pass the input (and mask) through each layer in turn."""
+    def forward(self, xv, xc, adj_pos, adj_neg):
+        """
+        meta paths are only calculated once
+        """
+        if self.cached_adj is None:
+            self.cached_adj = [adj_pos, adj_neg]
+            self._meta_paths_(adj_pos=adj_pos, adj_neg=adj_neg)
+
         meta_paths_lit = [self.cached_lit_pos_pos,
                           self.cached_lit_pos_neg,
                           self.cached_lit_neg_pos,
@@ -95,22 +100,22 @@ class GraphTransformer(nn.Module, ABC):
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         # build encoders
-        xv, xc = self.encode(xv, xc)
+        xv, xc = self.encode(xv, xc, adj_pos, adj_neg)
         return self.decode(xv, xc, adj_pos, adj_neg)
 
-    def encode(self, xv, xc):
-        return self.encoder(xv, xc)
+    def encode(self, xv, xc, adj_pos, adj_neg):
+        return self.encoder(xv, xc, adj_pos, adj_neg)
 
     def decode(self, xv, xc, adj_pos, adj_neg):
         return self.decoder(xv, xc, adj_pos, adj_neg)
 
 
-def make_model(xv, xc, adj_pos, adj_neg, args):
+def make_model(args):
     """Helper: Construct a model from hyperparameters."""
     c = copy.deepcopy
     ff = nn.Linear(args.in_channels, args.out_channels)
     model = GraphTransformer(
-        Encoder(EncoderLayer(args), adj_pos, adj_neg, args.num_layers),
+        Encoder(EncoderLayer(args), args.num_layers),
         Decoder(DecoderLayer(args, c(ff)), args.num_layers))
 
     # This was important from their code.

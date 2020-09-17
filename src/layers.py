@@ -24,6 +24,7 @@ def clones(module, k):
 
 class LayerNorm(nn.Module, ABC):
     """Construct a layer-norm module (See citation for details)."""
+
     def __init__(self, in_channels, eps=1e-6):
         super(LayerNorm, self).__init__()
         self.alpha = nn.Parameter(torch.ones(in_channels))
@@ -59,9 +60,10 @@ class SublayerConnection(nn.Module, ABC):
 
 class EncoderLayer(nn.Module, ABC):
     """Encoder is made up of two sub-layers, self-attn and feed forward (defined below)"""
+
     def __init__(self, args):
         super(EncoderLayer, self).__init__()
-        
+
         # weights for meta-paths
         self.lit_path_weights = nn.Parameter(torch.ones(args.num_meta_paths))
         self.cls_path_weights = nn.Parameter(torch.ones(args.num_meta_paths))
@@ -70,7 +72,7 @@ class EncoderLayer(nn.Module, ABC):
             args.in_channels, args.out_channels, heads=args.self_att_heads), args.num_meta_paths)
         self.self_cls_attentions = clones(HGAConv(
             args.in_channels, args.out_channels, heads=args.self_att_heads), args.num_meta_paths)
-        
+
         self.sublayer_lit = SublayerConnection(args.out_channels, args.drop_rate)
         self.sublayer_cls = SublayerConnection(args.out_channels, args.drop_rate)
         self.cross_attention_pos = HGAConv((args.out_channels, args.out_channels),
@@ -83,6 +85,8 @@ class EncoderLayer(nn.Module, ABC):
     def _attention_meta_path(x, meta_paths, layers, path_weights):
         assert len(layers) == len(meta_paths), "the length should match"
         res = torch.zeros(x.shape)
+        # TODO try to use batched matrix for meta-paths
+        #   e.g. concatenate adj of meta-path as one diagonalized matrix, and stack x
         for i in range(len(layers)):  # they are not sequential, but in reduction mode
             res += path_weights[i] * layers[i](x, meta_paths[i])
         return res
@@ -100,7 +104,7 @@ class EncoderLayer(nn.Module, ABC):
                                                                        self.cls_path_weights))
         xv_pos, xc_pos = self.cross_attention_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.cross_attention_neg((xv, xc), adj_neg)
-        return xv_pos + xv_neg, xc_pos + xc_neg   # TODO is xv_pos + xv_neg appropriate?
+        return xv_pos + xv_neg, xc_pos + xc_neg  # TODO is xv_pos + xv_neg appropriate?
 
 
 class DecoderLayer(nn.Module, ABC):
@@ -121,7 +125,7 @@ class DecoderLayer(nn.Module, ABC):
         xv_pos, xc_pos = self.sublayer[0]((xv, xc), lambda x: self.attn_pos(x, adj_pos))
         xv_neg, xc_neg = self.sublayer[1]((xv, xc), lambda x: self.attn_neg(x, adj_neg))
         return self.sublayer[2](xv_pos + xv_neg, self.feed_forward), \
-            self.sublayer[3](xc_pos + xc_neg, self.feed_forward)
+               self.sublayer[3](xc_pos + xc_neg, self.feed_forward)
 
 
 class HGAConv(MessagePassing):

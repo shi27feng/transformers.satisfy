@@ -16,24 +16,20 @@ def make_args():
 
     # dataset
     parser.add_argument('--graph_test_ratio', dest='graph_test_ratio', default=0.2, type=float)
-    parser.add_argument('--feature_pre', dest='feature_pre', action='store_true',
-                        help='whether pre transform feature')
-    parser.add_argument('--feature_pre_no', dest='feature_pre', action='store_false',
-                        help='whether pre transform feature')
+    parser.add_argument('--feature_transform', dest='feature_transform', action='store_true',
+                        help='whether pre-transform feature')
     parser.add_argument('--drop_rate', dest='drop_rate', action='store_true',
                         help='whether dropout rate, default 0.5')
     parser.add_argument('--speedup', dest='speedup', action='store_true',
                         help='whether speedup')
-    parser.add_argument('--speedup_no', dest='speedup', action='store_false',
-                        help='whether speedup')
-    parser.add_argument('--recompute_template', dest='recompute_template', action='store_true',
-                        help='whether save_template')
     parser.add_argument('--load_model', dest='load_model', action='store_true',
                         help='whether load_model')
 
     parser.add_argument('--batch_size', dest='batch_size', default=64,
                         type=int)  # implemented via accumulating gradient
     parser.add_argument('--num_layers', dest='num_layers', default=2, type=int)
+    parser.add_argument('--num_encoders', dest='num_encoders', default=2, type=int)
+    parser.add_argument('--num_decoders', dest='num_decoders', default=2, type=int)
     parser.add_argument('--in_channels', dest='in_channels', default=1, type=int)
     # parser.add_argument('--hidden_dim', dest='hidden_dim', default=32, type=int)
     parser.add_argument('--out_channels', dest='out_channels', default=32, type=int)
@@ -46,7 +42,8 @@ def make_args():
     parser.add_argument('--epoch_log', dest='epoch_log', default=50, type=int)  # test every
     # parser.add_argument('--epoch_test', dest='epoch_test',
     #                     default=2001, type=int)  # test start from when. Default not doing test.
-    # parser.add_argument('--epoch_save', dest='epoch_save', default=50, type=int)  # save every
+    parser.add_argument('--epoch_save', dest='epoch_save', default=50, type=int)  # save every
+    parser.add_argument('--save_root', dest='save_root', default='saved_model', type=str)
     # parser.add_argument('--epoch_load', dest='epoch_load', default=2000, type=int)  # test start from when
     # parser.add_argument('--gen_graph_num', dest='gen_graph_num', default=1, type=int)  # graph num per template
     # parser.add_argument('--sample_size', dest='sample_size', default=20000, type=int)  # number of action samples
