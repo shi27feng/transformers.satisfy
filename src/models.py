@@ -111,8 +111,9 @@ class GraphTransformer(nn.Module, ABC):
 
 
 def make_model(args):
-    """Helper: Construct a model from hyperparameters."""
+    """ Helper: Construct a model from hyper-parameters. """
     c = copy.deepcopy
+    # Create feed-forward
     ff = nn.Linear(args.in_channels, args.out_channels)
     model = GraphTransformer(
         Encoder(EncoderLayer(args), args.num_layers),

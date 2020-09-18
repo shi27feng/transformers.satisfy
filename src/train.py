@@ -1,17 +1,16 @@
-# DGL 
+# Reference from DGL
+# http://nlp.seas.harvard.edu/2018/04/03/attention.html
 # https://docs.dgl.ai/en/0.4.x/tutorials/models/4_old_wines/7_transformer.html#task-and-the-dataset
 
-from tqdm import tqdm
 import torch as th
-import numpy as np
-import random
+from torch_geometric.data import DataLoader
+from tqdm import tqdm
 
 from args import make_args
-from loss import LabelSmoothing, SimpleLossCompute
+from data import SATDataset
+from loss import SimpleLossCompute
 from models import make_model
 from optimizer import get_std_opt
-from data import SATDataset
-from torch_geometric. data import DataLoader
 
 
 def run_epoch(data_loader, model, loss_compute, is_train=True, desc=None):
@@ -37,7 +36,7 @@ def main():
     dataset = SATDataset('dataset', 'RND3SAT/uf50-218')
 
     # randomly split into around 80% train, 10% val and 10% train
-    last_train, last_valid = int(len(dataset)*0.8), int(len(dataset) * 0.9)
+    last_train, last_valid = int(len(dataset) * 0.8), int(len(dataset) * 0.9)
     train_loader = DataLoader(dataset[:last_train],
                               batch_size=args.batch_size, shuffle=True)
     valid_loader = DataLoader(dataset[last_train: last_valid],
@@ -66,12 +65,11 @@ def main():
         run_epoch(valid_loader, model,
                   loss_compute(),
                   is_train=False, desc="Valid Epoch {}".format(epoch))
-        att_maps.append(model.att_weight_map)
-        print('Epoch: {} Testing...'.format(epoch))
-        model.att_weight_map = None
-        model.eval()
-        run_epoch(test_loader, model,
-                  loss_compute(), is_train=False)
+
+    print('Testing...')
+    model.eval()
+    run_epoch(test_loader, model,
+              loss_compute(), is_train=False)
 
 
 if __name__ == "__main__":

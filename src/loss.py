@@ -11,13 +11,15 @@ class LabelSmoothing(nn.Module, ABC):
 
 
 class SimpleLossCompute(nn.Module, ABC):
-    def __init__(self, p, a, device):
+    def __init__(self, p, a, device, opt=None):
         super(SimpleLossCompute, self).__init__()
         self.p = p
         self.a = a
         self.device = device
+        self.opt = opt
 
-    def forward(self, xv, adj_pos, adj_neg):
+    # def forward(self, xv, adj_pos, adj_neg):
+    def __call__(self, xv, adj_pos, adj_neg):
         """
         Args:
             xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
@@ -30,26 +32,23 @@ class SimpleLossCompute(nn.Module, ABC):
         # xp = literal(xv[adj_pos[1]], 1)
         xp = xv[adj_pos[1]]
         xn = negation(xv[adj_neg[1]])
-        print(f"xv: {xv}")
-        print(f"xp: {xp}")
-        print(f"xn: {xn}")
         x = torch.cat((xp, xn))
         xe = torch.exp(self.p * x)  # exp(x*p)
         numerator = torch.mul(x, xe)  # x*exp(x*p)
         adj = torch.cat((adj_pos, adj_neg), 1)
         idx = adj[0]
-        print(f"idx : {idx}")
-        print(f"numerator: {numerator}")
-        print(f"xe: {xe}")
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
-        print(f"numerator: {numerator}")
-        print(f"dominator: {dominator}")
         sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
-        print(f"smooth_max: {sm}")
         log_smooth = torch.log(sm)
-        print(f"log_smooth_max: {log_smooth}")
-        return -sum(log_smooth)
+        total_loss = -torch.sum(log_smooth)
+
+        total_loss.backward()
+        if self.opt is not None:
+            self.opt.step()
+            self.opt.optimizer.zero_grad()
+
+        return total_loss
 
 
 def literal(xi, e):
