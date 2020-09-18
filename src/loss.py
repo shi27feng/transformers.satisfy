@@ -5,13 +5,12 @@ import torch.nn as nn
 from torch_scatter import scatter
 
 
-
 class LabelSmoothing(nn.Module, ABC):
     def __init__(self):
         super(LabelSmoothing, self).__init__()
 
 
-class SimpleLossCompute(nn.Module):
+class SimpleLossCompute(nn.Module, ABC):
     def __init__(self, p, a, device):
         super(SimpleLossCompute, self).__init__()
         self.p = p
@@ -19,10 +18,14 @@ class SimpleLossCompute(nn.Module):
         self.device = device
 
     def forward(self, xv, adj_pos, adj_neg):
-        '''
-        xv expected shape : (Nodes number, 1) i.g. [[.9], [.8], [.3], [.4]]
-        adj[0] is clause, adj[1] is variable
-        '''
+        """
+        Args:
+            xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
+            adj_pos: Tensor
+            adj_neg: Tensor
+        Desc:
+            adj[0] is an array of clause indices, adj[1] is an array of variables
+        """
         xv = xv.view(-1)
         # xp = literal(xv[adj_pos[1]], 1)
         xp = xv[adj_pos[1]]
@@ -30,50 +33,56 @@ class SimpleLossCompute(nn.Module):
         print(f"xv: {xv}")
         print(f"xp: {xp}")
         print(f"xn: {xn}")
-        x = torch.cat((xp, xn))             
-        xexp = torch.exp(self.p * x)         # exp(x*p) 
-        numeritor = torch.mul(x, xexp)      # x*exp(x*p)
+        x = torch.cat((xp, xn))
+        xe = torch.exp(self.p * x)  # exp(x*p)
+        numerator = torch.mul(x, xe)  # x*exp(x*p)
         adj = torch.cat((adj_pos, adj_neg), 1)
         idx = adj[0]
         print(f"idx : {idx}")
-        print(f"numeritor: {numeritor}")
-        print(f"xexp: {xexp}")
-        numeritor = scatter(numeritor, idx, reduce="sum")
-        dominator = scatter(xexp, idx, reduce="sum")
-        print(f"numeritor: {numeritor}")
+        print(f"numerator: {numerator}")
+        print(f"xe: {xe}")
+        numerator = scatter(numerator, idx, reduce="sum")
+        dominator = scatter(xe, idx, reduce="sum")
+        print(f"numerator: {numerator}")
         print(f"dominator: {dominator}")
-        smoothM = push_to_side(torch.div(numeritor, dominator), self.a) #S(MAX')
-        print(f"smoothMax: {smoothM}")
-        logsmooth = torch.log(smoothM)
-        print(f"logsmoothMax: {logsmooth}")
-        return -sum(logsmooth)
+        sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
+        print(f"smooth_max: {sm}")
+        log_smooth = torch.log(sm)
+        print(f"log_smooth_max: {log_smooth}")
+        return -sum(log_smooth)
+
 
 def literal(xi, e):
-    return (1-e) / 2 + e * xi
+    return (1 - e) / 2 + e * xi
+
 
 def negation(xi):
-    return 1-xi
+    return 1 - xi
 
-def push_to_side(x, a): # larger a means push harder
-    return 1 / (1 + torch.exp(a*(0.5 - x)))
 
-def SmoothMAX(X, p): # Approx Max If p is large, but will produce inf for p too large
-    exponential = torch.exp(p * X)
-    return torch.dot(X, exponential) / torch.sum(exponential)
+def push_to_side(x, a):  # larger a means push harder
+    return 1 / (1 + torch.exp(a * (0.5 - x)))
 
-def SMtest():
+
+def smooth_max(x, p):  # Approx Max If p is large, but will produce inf for p too large
+    exponential = torch.exp(p * x)
+    return torch.dot(x, exponential) / torch.sum(exponential)
+
+
+def smooth_max_test():
     # Use this function to test numerical stability of SmoothMAX with different input
     for i in range(100, 1000, 100):
         x = torch.rand(i)
         print("Length of X: ", i)
         print(torch.max(x))
-        SM = SmoothMAX(x, 30)
-        print(SM)
-        print('percentile: ', 1 - sum(x > SM) / float(i))
+        sm = smooth_max(x, 30)
+        print(sm)
+        print('percentile: ', 1 - sum(x > sm) / float(i))
         print("\n")
 
-if __name__=="__main__":
-    xv = torch.tensor([[.1],[.2], [.7], [.9]])
+
+if __name__ == "__main__":
+    xv = torch.tensor([[.1], [.2], [.7], [.9]])
     xv = xv.view(-1)
     edge_index_pos = torch.tensor([
         [0, 0, 1, 2],
@@ -85,10 +94,8 @@ if __name__=="__main__":
     ])
     x_s = torch.rand(4, 1)  # 2 nodes.
     x_t = torch.rand(3, 1)  # 3 nodes.
-    lossFunc = SimpleLossCompute(30, 50, "cuda")
-    loss = lossFunc(x_s, edge_index_pos, edge_index_neg)
+    loss_func = SimpleLossCompute(30, 50, "cuda")
+    loss = loss_func(x_s, edge_index_pos, edge_index_neg)
     print(loss)
 
-
-    
-    # SMtest()
+    # smooth_max_test()
