@@ -1,27 +1,35 @@
 # Reference from DGL
 # http://nlp.seas.harvard.edu/2018/04/03/attention.html
 # https://docs.dgl.ai/en/0.4.x/tutorials/models/4_old_wines/7_transformer.html#task-and-the-dataset
-
+import time
 import torch as th
-from torch_geometric.data import DataLoader
-from tqdm import tqdm
 
+from tqdm import tqdm
 from args import make_args
 from data import SATDataset
 from loss import SimpleLossCompute
 from models import make_model
 from optimizer import get_std_opt
+from torch_geometric.data import DataLoader
 
 
 def run_epoch(data_loader, model, loss_compute, is_train=True, desc=None):
+    """Standard Training and Logging Function"""
+    total_loss = 0
+    start = time.time()
     for i, batch in tqdm(enumerate(data_loader),
                          total=len(data_loader),
                          desc=desc):
         with th.set_grad_enabled(is_train):
             output = model(batch)
             loss = loss_compute(output)
-    print('average loss: {}'.format(loss_compute.avg_loss))
-    print('accuracy: {}'.format(loss_compute.accuracy))
+            total_loss += loss
+    elapsed = time.time() - start
+    num_items = len(data_loader)
+
+    print('average loss: {}; average time: {}'.format(total_loss / num_items, elapsed / num_items))
+    # TODO accuracy
+    # print('accuracy: {}'.format(loss_compute.accuracy))
 
 
 def save_model(model, root):

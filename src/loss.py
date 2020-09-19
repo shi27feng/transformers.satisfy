@@ -19,7 +19,7 @@ class SimpleLossCompute(nn.Module, ABC):
         self.opt = opt
 
     # def forward(self, xv, adj_pos, adj_neg):
-    def __call__(self, xv, adj_pos, adj_neg, is_training):
+    def __call__(self, xv, adj_pos, adj_neg):
         """
         Args:
             xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
@@ -41,14 +41,14 @@ class SimpleLossCompute(nn.Module, ABC):
         dominator = scatter(xe, idx, reduce="sum")
         sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
         log_smooth = torch.log(sm)
-        total_loss = -torch.sum(log_smooth)
+        _loss = -torch.sum(log_smooth)
 
         if self.opt is not None:
-            total_loss.backward()
-            self.opt.step()
             self.opt.optimizer.zero_grad()
+            _loss.backward()
+            self.opt.step()
 
-        return total_loss
+        return _loss
 
 
 def literal(xi, e):
