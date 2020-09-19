@@ -42,8 +42,9 @@ class SATDataset(InMemoryDataset, ABC):
         },
     }
 
-    def __init__(self, root, name, transform=None, pre_transform=None):
+    def __init__(self, root, name, use_negative, transform=None, pre_transform=None):
         self.name = name
+        self.use_negative = use_negative
         assert self.name.split('/')[0] in self.datasets.keys()
         super(SATDataset, self).__init__(root, transform, pre_transform)
         path = osp.join(self.processed_dir, self.processed_file_names)
@@ -65,13 +66,14 @@ class SATDataset(InMemoryDataset, ABC):
 
     def download(self):
         r"""Downloads the dataset to the :obj:`self.raw_dir` folder."""
+        print('Satisfied Cases ...')
         name = self.name
         path = download_url(self.url.format(name), self.raw_dir)
         ns = self.name.split('/')
         self.datasets[ns[0]]['extract'](path, self.raw_dir)
         os.unlink(path)
-        if ns[0] == list(self.datasets.keys())[0]:
-            print('unsatisfied cases ...')
+        if self.use_negative and ns[0] == list(self.datasets.keys())[0]:
+            print('Unsatisfied Cases ...')
             name = str(ns[0] + '/u' + ns[1])
             path = download_url(self.url.format(name), self.raw_dir)
             self.datasets[ns[0]]['extract'](path, self.raw_dir)

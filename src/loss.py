@@ -44,9 +44,9 @@ class SimpleLossCompute(nn.Module, ABC):
         _loss = -torch.sum(log_smooth)
 
         if self.opt is not None:
-            self.opt.optimizer.zero_grad()
             _loss.backward()
             self.opt.step()
+            self.opt.optimizer.zero_grad()
 
         return _loss
 

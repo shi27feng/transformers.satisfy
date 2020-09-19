@@ -87,7 +87,7 @@ class Decoder(nn.Module, ABC):
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         for layer in self.layers:
-            x = layer(xv, xc, adj_pos, adj_neg)
+            xv, xc = layer(xv, xc, adj_pos, adj_neg)
         return self.norm(xv), self.norm(xc)
 
 
@@ -116,8 +116,8 @@ def make_model(args):
     # Create feed-forward
     ff = nn.Linear(args.in_channels, args.out_channels)
     model = GraphTransformer(
-        Encoder(EncoderLayer(args), args.num_layers),
-        Decoder(DecoderLayer(args, c(ff)), args.num_layers))
+        Encoder(EncoderLayer(args), args.num_encoder_layers),
+        Decoder(DecoderLayer(args, c(ff)), args.num_decoder_layers))
 
     # This was important from their code.
     # Initialize parameters with Glorot / fan_avg.

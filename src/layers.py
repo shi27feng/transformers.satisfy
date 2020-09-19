@@ -125,7 +125,7 @@ class DecoderLayer(nn.Module, ABC):
         xv_pos, xc_pos = self.sublayer[0]((xv, xc), lambda x: self.attn_pos(x, adj_pos))
         xv_neg, xc_neg = self.sublayer[1]((xv, xc), lambda x: self.attn_neg(x, adj_neg))
         return self.sublayer[2](xv_pos + xv_neg, self.feed_forward), \
-               self.sublayer[3](xc_pos + xc_neg, self.feed_forward)
+            self.sublayer[3](xc_pos + xc_neg, self.feed_forward)
 
 
 class HGAConv(MessagePassing):
