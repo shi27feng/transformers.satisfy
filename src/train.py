@@ -66,27 +66,25 @@ def main():
     # make_model black box
     model = make_model(args)
     opt = get_std_opt(model, args)
-    loss_compute = SimpleLossCompute
+    loss_compute = SimpleLossCompute(args.p, args.a, device, opt)
 
     for epoch in range(args.epoch_num):
         # print('Epoch: {} Training...'.format(epoch))
         model.train(True)
-        run_epoch(train_loader, model,
-                  loss_compute,
-                  is_train=True, desc="Train Epoch {}".format(epoch))
+        run_epoch(train_loader, model, loss_compute, is_train=True,
+                  desc="Train Epoch {}".format(epoch))
         print('Epoch: {} Evaluating...'.format(epoch))
         # TODO Save model
         if epoch % args.epoch_save == 0:
             save_model(model, args.save_root)
+        # Validation
         model.eval()
-        run_epoch(valid_loader, model,
-                  loss_compute,
-                  is_train=False, desc="Valid Epoch {}".format(epoch))
+        run_epoch(valid_loader, model, loss_compute, is_train=False,
+                  desc="\t Valid Epoch {}".format(epoch))
 
     print('Testing...')
     model.eval()
-    run_epoch(test_loader, model,
-              loss_compute, is_train=False)
+    run_epoch(test_loader, model, loss_compute, is_train=False)
 
 
 if __name__ == "__main__":

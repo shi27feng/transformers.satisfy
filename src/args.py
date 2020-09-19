@@ -36,7 +36,11 @@ def make_args():
     parser.add_argument('--in_channels', dest='in_channels', default=1, type=int)
     parser.add_argument('--out_channels', dest='out_channels', default=32, type=int)
 
+    # Training Setting up
     parser.add_argument('--lr', dest='lr', default=1e-3, type=float)
+    parser.add_argument('--p', dest='p', default=1e-3, type=float)
+    parser.add_argument('--a', dest='a', default=1e-3, type=float)
+    parser.add_argument('--warmup_steps', dest='warmup_steps', default=200, type=float)
     parser.add_argument('--epoch_num', dest='epoch_num', default=201, type=int)   # paper used: 2001
     parser.add_argument('--epoch_log', dest='epoch_log', default=50, type=int)  # test every
     parser.add_argument('--epoch_save', dest='epoch_save', default=50, type=int)  # save every
