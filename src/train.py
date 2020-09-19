@@ -14,11 +14,11 @@ from optimizer import get_std_opt
 
 
 def run_epoch(data_loader, model, loss_compute, is_train=True, desc=None):
-    for i, g in tqdm(enumerate(data_loader),
-                     total=len(data_loader),
-                     desc=desc):
+    for i, batch in tqdm(enumerate(data_loader),
+                         total=len(data_loader),
+                         desc=desc):
         with th.set_grad_enabled(is_train):
-            output = model(g)
+            output = model(batch)
             loss = loss_compute(output)
     print('average loss: {}'.format(loss_compute.avg_loss))
     print('accuracy: {}'.format(loss_compute.accuracy))
