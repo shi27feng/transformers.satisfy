@@ -51,6 +51,7 @@ class SimpleLossCompute(nn.Module, ABC):
 
         return _loss
 
+
 class SimpleLossCompute2(nn.Module, ABC):
     def __init__(self, p, a, device, opt=None):
         super(SimpleLossCompute2, self).__init__()
@@ -91,6 +92,7 @@ class SimpleLossCompute2(nn.Module, ABC):
             self.opt.optimizer.zero_grad()
 
         return _loss
+
 
 def literal(xi, e):
     return (1 - e) / 2 + e * xi
