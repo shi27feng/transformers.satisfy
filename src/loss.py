@@ -12,12 +12,13 @@ class LabelSmoothing(nn.Module, ABC):
 
 
 class SimpleLossCompute(nn.Module, ABC):
-    def __init__(self, p, a, device, opt=None):
+    def __init__(self, p, a, device, opt=None, debug=False):
         super(SimpleLossCompute, self).__init__()
         self.p = p
         self.a = a
         self.device = device
         self.opt = opt
+        self.debug = debug
 
     # def forward(self, xv, adj_pos, adj_neg):
     def __call__(self, xv, adj_pos, adj_neg):
@@ -30,7 +31,6 @@ class SimpleLossCompute(nn.Module, ABC):
             adj[0] is an array of clause indices, adj[1] is an array of variables
         """
         xv = xv.view(-1)
-        # xp = literal(xv[adj_pos[1]], 1)
         xp = xv[adj_pos[1]]
         xn = negation(xv[adj_neg[1]])
         x = torch.cat((xp, xn))
@@ -49,16 +49,20 @@ class SimpleLossCompute(nn.Module, ABC):
             self.opt.step()
             self.opt.optimizer.zero_grad()
 
+        if self.debug:
+            return _loss, sm
+
         return _loss
 
 
 class SimpleLossCompute2(nn.Module, ABC):
-    def __init__(self, p, a, device, opt=None):
+    def __init__(self, p, a, device, opt=None, debug=False):
         super(SimpleLossCompute2, self).__init__()
         self.p = p
         self.a = a
         self.device = device
         self.opt = opt
+        self.debug = debug
 
     # def forward(self, xv, adj_pos, adj_neg):
     def __call__(self, xv, adj_pos, adj_neg):
@@ -72,13 +76,8 @@ class SimpleLossCompute2(nn.Module, ABC):
         """
         xv = xv.view(-1)
         xn = negation(xv)
-        # xp = literal(xv[adj_pos[1]], 1)
-        # xp = xv[adj_pos[1]]
-        # xn = negation(xv[adj_neg[1]])
-
         xe = torch.cat((torch.exp(self.p * xv)[adj_pos[1]], torch.exp(self.p * xn)[adj_neg[1]]))  # exp(x*p)
         numerator = torch.mul(torch.cat((xv[adj_pos[1]],xn[adj_neg[1]])), xe)  # x*exp(x*p)
-        adj = torch.cat((adj_pos, adj_neg), 1)
         idx = torch.cat((adj_pos[0], adj_neg[0]))
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
@@ -90,6 +89,9 @@ class SimpleLossCompute2(nn.Module, ABC):
             _loss.backward()
             self.opt.step()
             self.opt.optimizer.zero_grad()
+
+        if self.debug:
+            return _loss, sm
 
         return _loss
 
