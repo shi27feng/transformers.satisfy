@@ -53,11 +53,10 @@ class SimpleLossCompute(nn.Module, ABC):
 
 
 class SimpleLossCompute2(nn.Module, ABC):
-    def __init__(self, p, a, device, opt=None):
+    def __init__(self, p, a, opt=None):
         super(SimpleLossCompute2, self).__init__()
         self.p = p
         self.a = a
-        self.device = device
         self.opt = opt
 
     # def forward(self, xv, adj_pos, adj_neg):

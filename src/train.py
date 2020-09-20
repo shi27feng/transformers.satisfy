@@ -13,7 +13,7 @@ from optimizer import get_std_opt
 from torch_geometric.data import DataLoader
 
 
-def run_epoch(data_loader, model, loss_compute, is_train=True, desc=None):
+def run_epoch(data_loader, model, loss_compute, device, is_train=True, desc=None):
     """Standard Training and Logging Function
     Args:
         data_loader: SATDataset
@@ -28,7 +28,7 @@ def run_epoch(data_loader, model, loss_compute, is_train=True, desc=None):
     for i, batch in tqdm(enumerate(data_loader),
                          total=len(data_loader),
                          desc=desc):
-        # batch = batch.to(device)
+        batch = batch.to(device)
         with torch.set_grad_enabled(is_train):
             xv, vc = model(batch)
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
@@ -46,10 +46,7 @@ def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # download and save the dataset
-    dataset = SATDataset('dataset', 'RND3SAT/uf50-218', use_negative=False)
-    dataset = dataset.to(device)
-    # dataset.data = dataset.data.to(device)  # TODO need to verify
-    # dataset.sat = dataset.sat.to(device)
+    dataset = SATDataset(args.root, args.dataset, use_negative=False)
 
     # randomly split into around 80% train, 10% val and 10% train
     last_train, last_valid = int(len(dataset) * 0.8), int(len(dataset) * 0.9)
