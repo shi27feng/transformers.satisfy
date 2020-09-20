@@ -4,8 +4,8 @@ from argparse import ArgumentParser
 def make_args():
     parser = ArgumentParser()
     # general
-    parser.add_argument('--dataset', dest='dataset', default='grid', type=str,
-                        help='grid; caveman; barabasi, cora, citeseer, pubmed')
+    parser.add_argument('--dataset', dest='dataset', default='RND3SAT/uf50-218',
+                        type=str, help='RND3SAT DIMACS')
     parser.add_argument('--loss', dest='loss', default='l2', type=str,
                         help='l2; cross_entropy')
     parser.add_argument('--gpu', dest='gpu', action='store_true',
@@ -22,17 +22,17 @@ def make_args():
                         help='whether pre-transform feature')
 
     # model
-    parser.add_argument('--drop_rate', dest='drop_rate', action='store_true',
-                        help='whether dropout rate, default 0.5')
+    parser.add_argument('--drop_rate', dest='drop_rate', type=float, default=0.5,
+                        action='store_true', help='whether dropout rate, default 0.5')
     parser.add_argument('--speedup', dest='speedup', action='store_true',
                         help='whether speedup')
-    parser.add_argument('--load_model', dest='load_model', action='store_true',
-                        help='whether load_model')
+    parser.add_argument('--load_model', dest='load_model', default=False, type=bool,
+                        action='store_true', help='whether load_model')
     parser.add_argument('--batch_size', dest='batch_size', default=64,
                         type=int)  # implemented via accumulating gradient
     parser.add_argument('--num_layers', dest='num_layers', default=2, type=int)
-    parser.add_argument('--num_encoders', dest='num_encoder_layers', default=2, type=int)
-    parser.add_argument('--num_decoders', dest='num_decoder_layers', default=2, type=int)
+    parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=2, type=int)
+    parser.add_argument('--num_decoder_layers', dest='num_decoder_layers', default=2, type=int)
     parser.add_argument('--in_channels', dest='in_channels', default=1, type=int)
     parser.add_argument('--out_channels', dest='out_channels', default=32, type=int)
 
@@ -46,7 +46,7 @@ def make_args():
     parser.add_argument('--epoch_save', dest='epoch_save', default=50, type=int)  # save every
     parser.add_argument('--save_root', dest='save_root', default='saved_model', type=str)
 
-    parser.set_defaults(gpu=True, task='link', model='GCN', dataset='Cora', cache=True,
+    parser.set_defaults(gpu=True, dataset='Cora', cache=True,
                         feature_pre=True, dropout=False, recompute_template=False, load_model=False,
                         speedup=False)
     args = parser.parse_args()
