@@ -76,9 +76,9 @@ class EncoderLayer(nn.Module, ABC):
         self.sublayer_lit = SublayerConnection(args.out_channels, args.drop_rate)
         self.sublayer_cls = SublayerConnection(args.out_channels, args.drop_rate)
         self.cross_attention_pos = HGAConv((args.out_channels, args.out_channels),
-                                           args.out_channels, heads=args.self_att_heads)
+                                           args.out_channels, heads=args.cross_att_heads)
         self.cross_attention_neg = HGAConv((args.out_channels, args.out_channels),
-                                           args.out_channels, heads=args.self_att_heads)
+                                           args.out_channels, heads=args.cross_att_heads)
         self.args = args
 
     @staticmethod
@@ -114,9 +114,9 @@ class DecoderLayer(nn.Module, ABC):
         super(DecoderLayer, self).__init__()
         self.args = args
         self.attn_pos = HGAConv((args.out_channels, args.out_channels),
-                                args.out_channels, heads=args.self_att_heads)
+                                args.out_channels, heads=args.cross_att_heads)
         self.attn_neg = HGAConv((args.out_channels, args.out_channels),
-                                args.out_channels, heads=args.self_att_heads)
+                                args.out_channels, heads=args.cross_att_heads)
         self.feed_forward = feed_forward
         self.sublayer = clones(SublayerConnection(args.out_channels, args.drop_rate), 4)
 

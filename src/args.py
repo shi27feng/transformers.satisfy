@@ -32,8 +32,11 @@ def make_args():
     parser.add_argument('--num_layers', dest='num_layers', default=2, type=int)
     parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=2, type=int)
     parser.add_argument('--num_decoder_layers', dest='num_decoder_layers', default=2, type=int)
+    parser.add_argument('--num_meta_paths', dest='num_meta_paths', default=4, type=int)
     parser.add_argument('--in_channels', dest='in_channels', default=1, type=int)
     parser.add_argument('--out_channels', dest='out_channels', default=32, type=int)
+    parser.add_argument('--self_att_heads', dest='self_att_heads', default=8, type=int)
+    parser.add_argument('--cross_att_heads', dest='cross_att_heads', default=8, type=int)
 
     # Training Setting up
     parser.add_argument('--lr', dest='lr', default=1e-3, type=float)
