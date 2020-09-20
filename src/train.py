@@ -47,7 +47,9 @@ def main():
 
     # download and save the dataset
     dataset = SATDataset('dataset', 'RND3SAT/uf50-218', use_negative=False)
-    dataset = dataset.to(device)  # TODO need to verify
+    dataset = dataset.to(device)
+    # dataset.data = dataset.data.to(device)  # TODO need to verify
+    # dataset.sat = dataset.sat.to(device)
 
     # randomly split into around 80% train, 10% val and 10% train
     last_train, last_valid = int(len(dataset) * 0.8), int(len(dataset) * 0.9)
