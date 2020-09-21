@@ -233,7 +233,7 @@ class HGAConv(MessagePassing):
                 attention weights for each edge. (default: :obj:`None`)
         """
         h, c = self.heads, self.out_channels
-        assert (not isinstance(x, Tensor)) and h == len(adj), 'Number of heads is number of adjacency matrices'
+        assert (not isinstance(adj, Tensor)) and h == len(adj), 'Number of heads is number of adjacency matrices'
 
         x_l, x_r, alpha_l, alpha_r = None, None, None, None
 
