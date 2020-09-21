@@ -18,7 +18,7 @@ from utils import self_loop_augment
 
 def clones(module, k):
     return nn.ModuleList(
-        copy.deepcopy(module) for _ in range(k)
+        copy.deepcopy(module(i)) for i in range(k)
     )
 
 
@@ -43,43 +43,52 @@ class SublayerConnection(nn.Module, ABC):
     Note for code simplicity we apply the norm first as opposed to last.
     """
 
-    def __init__(self, size, drop_rate):
+    def __init__(self, in_channels, drop_rate):
         super(SublayerConnection, self).__init__()
-        self.norm = LayerNorm(size)
+        self.norm = LayerNorm(in_channels)
         self.dropout = nn.Dropout(drop_rate)
 
     def forward(self, x, sublayer):
-        """Apply residual connection to any sublayer function that maintains the same size."""
-        if x is Tensor:
-            return x + self.dropout(sublayer(self.norm(x)))
-        else:
-            xv, xc = x
-            xv, xc = sublayer((self.norm(xv), self.norm(xc)))
-            return self.dropout(xv) + x[0], self.dropout(xc) + x[1]
+        """Apply residual connection to any sublayer function that maintains the same in_channels."""
+        return x + self.dropout(sublayer(self.norm(x)))
+        # if x is Tensor:
+        #     return x + self.dropout(sublayer(self.norm(x)))
+        # else:
+        #     xv, xc = x
+        #     xv, xc = sublayer((self.norm(xv), self.norm(xc)))
+        #     return self.dropout(xv) + x[0], self.dropout(xc) + x[1]
 
 
 class EncoderLayer(nn.Module, ABC):
     """Encoder is made up of two sub-layers, self-attn and feed forward (defined below)"""
 
-    def __init__(self, args):
+    def __init__(self,
+                 in_channels,
+                 hidden_dims,
+                 out_channels,
+                 num_meta_paths,
+                 self_att_heads=4,
+                 cross_att_heads=4,
+                 drop_rate=0.5):
         super(EncoderLayer, self).__init__()
-
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.hidden_dims = hidden_dims
         # weights for meta-paths
-        self.lit_path_weights = nn.Parameter(torch.ones(args.num_meta_paths))
-        self.cls_path_weights = nn.Parameter(torch.ones(args.num_meta_paths))
+        self.lit_path_weights = nn.Parameter(torch.ones(num_meta_paths))
+        self.cls_path_weights = nn.Parameter(torch.ones(num_meta_paths))
 
         self.self_lit_attentions = clones(HGAConv(
-            args.in_channels, args.out_channels, heads=args.self_att_heads), args.num_meta_paths)
+            in_channels, hidden_dims, heads=self_att_heads), num_meta_paths)
         self.self_cls_attentions = clones(HGAConv(
-            args.in_channels, args.out_channels, heads=args.self_att_heads), args.num_meta_paths)
+            in_channels, hidden_dims, heads=self_att_heads), num_meta_paths)
 
-        self.sublayer_lit = SublayerConnection(args.out_channels, args.drop_rate)
-        self.sublayer_cls = SublayerConnection(args.out_channels, args.drop_rate)
-        self.cross_attention_pos = HGAConv((args.out_channels, args.out_channels),
-                                           args.out_channels, heads=args.cross_att_heads)
-        self.cross_attention_neg = HGAConv((args.out_channels, args.out_channels),
-                                           args.out_channels, heads=args.cross_att_heads)
-        self.args = args
+        self.sublayer_lit = SublayerConnection(hidden_dims, drop_rate)
+        self.sublayer_cls = SublayerConnection(hidden_dims, drop_rate)
+        self.cross_attention_pos = HGAConv((hidden_dims, hidden_dims),
+                                           out_channels, heads=cross_att_heads)
+        self.cross_attention_neg = HGAConv((hidden_dims, hidden_dims),
+                                           out_channels, heads=cross_att_heads)
 
     @staticmethod
     def _attention_meta_path(x, meta_paths, layers, path_weights):
@@ -110,22 +119,36 @@ class EncoderLayer(nn.Module, ABC):
 class DecoderLayer(nn.Module, ABC):
     """Decoder is made of self-attn, src-attn, and feed forward (defined below)"""
 
-    def __init__(self, args, feed_forward):
+    def __init__(self,
+                 in_channels,
+                 hidden_dims,
+                 out_channels,
+                 cross_att_heads=4,
+                 drop_rate=0.5,
+                 feed_forward=None):
         super(DecoderLayer, self).__init__()
-        self.args = args
-        self.attn_pos = HGAConv((args.out_channels, args.out_channels),
-                                args.out_channels, heads=args.cross_att_heads)
-        self.attn_neg = HGAConv((args.out_channels, args.out_channels),
-                                args.out_channels, heads=args.cross_att_heads)
-        self.feed_forward = feed_forward
-        self.sublayer = clones(SublayerConnection(args.out_channels, args.drop_rate), 4)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.hidden_dims = hidden_dims
+
+        self.attn_pos = HGAConv((in_channels, in_channels),
+                                hidden_dims, heads=cross_att_heads)
+        self.attn_neg = HGAConv((in_channels, in_channels),
+                                hidden_dims, heads=cross_att_heads)
+
+        self.ff_v = nn.Linear(hidden_dims, out_channels)
+        self.ff_c = nn.Linear(hidden_dims, out_channels)
+
+        self.sublayer = clones(SublayerConnection(out_channels, drop_rate), 2)  # 4
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         """Follow Figure 1 (right) for connections."""
-        xv_pos, xc_pos = self.sublayer[0]((xv, xc), lambda x: self.attn_pos(x, adj_pos))
-        xv_neg, xc_neg = self.sublayer[1]((xv, xc), lambda x: self.attn_neg(x, adj_neg))
-        return self.sublayer[2](xv_pos + xv_neg, self.feed_forward), \
-            self.sublayer[3](xc_pos + xc_neg, self.feed_forward)
+        # xv_pos, xc_pos = self.sublayer[0]((xv, xc), lambda x: self.attn_pos(x, adj_pos))
+        # xv_neg, xc_neg = self.sublayer[1]((xv, xc), lambda x: self.attn_neg(x, adj_neg))
+        xv_pos, xc_pos = self.attn_pos((xv, xc), adj_pos)
+        xv_neg, xc_neg = self.attn_neg((xv, xc), adj_neg)
+        return self.sublayer[0](xv_pos + xv_neg, self.ff_v), \
+            self.sublayer[1](xc_pos + xc_neg, self.ff_c)
 
 
 class HGAConv(MessagePassing):

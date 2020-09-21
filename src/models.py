@@ -12,7 +12,7 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 class Encoder(nn.Module, ABC):
     """Core encoder is a stack of N layers"""
 
-    def __init__(self, layer, num_layers):
+    def __init__(self, args):
         super(Encoder, self).__init__()
         self.cached_adj = None
 
@@ -26,8 +26,17 @@ class Encoder(nn.Module, ABC):
         self.cached_lit_neg_pos = None
         self.cached_lit_neg_neg = None
 
-        self.layers = clones(layer, num_layers)
-        self.norm = LayerNorm(layer.size)
+        channels = [int(n) for n in args.encoder_channels.split(',')]
+        self.layers = nn.ModuleList([
+            EncoderLayer(channels[i],
+                         channels[i + 1],
+                         channels[i + 1],
+                         args.num_meta_paths,
+                         args.self_att_heads,
+                         args.cross_att_heads,
+                         args.drop_rate) for i in range(args.num_encoder_layers)
+        ])
+        self.norm = LayerNorm(channels[-1])
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         """
@@ -80,10 +89,18 @@ class Encoder(nn.Module, ABC):
 class Decoder(nn.Module, ABC):
     """Generic N layer decoder with masking."""
 
-    def __init__(self, layer, num_layers):
+    def __init__(self, args):
         super(Decoder, self).__init__()
-        self.layers = clones(layer, num_layers)
-        self.norm = LayerNorm(layer.size)
+        channels = [int(n) for n in args.decoder_channels.split(',')]
+        self.layers = nn.ModuleList([
+            DecoderLayer(channels[i],
+                         channels[i + 1],
+                         channels[i + 1],
+                         args.cross_att_heads,
+                         args.drop_rate) for i in range(args.num_decoder_layers)
+        ])
+
+        self.norm = LayerNorm(channels[-1])
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         for layer in self.layers:
@@ -112,12 +129,9 @@ class GraphTransformer(nn.Module, ABC):
 
 def make_model(args):
     """ Helper: Construct a model from hyper-parameters. """
-    c = copy.deepcopy
-    # Create feed-forward
-    ff = nn.Linear(args.in_channels, args.out_channels)
     model = GraphTransformer(
-        Encoder(EncoderLayer(args), args.num_encoder_layers),
-        Decoder(DecoderLayer(args, c(ff)), args.num_decoder_layers))
+        Encoder(args),
+        Decoder(args))
 
     # This was important from their code.
     # Initialize parameters with Glorot / fan_avg.
