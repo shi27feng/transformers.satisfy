@@ -33,8 +33,8 @@ def make_args():
     parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=2, type=int)
     parser.add_argument('--num_decoder_layers', dest='num_decoder_layers', default=2, type=int)
     parser.add_argument('--num_meta_paths', dest='num_meta_paths', default=4, type=int)
-    parser.add_argument('--encoder_channels', dest='in_channels', default='1,16,32', type=str)
-    parser.add_argument('--decoder_channels', dest='out_channels', default='32,16,16', type=int)
+    parser.add_argument('--encoder_channels', dest='encoder_channels', default='1,16,32', type=str)
+    parser.add_argument('--decoder_channels', dest='decoder_channels', default='32,16,16', type=str)
     parser.add_argument('--self_att_heads', dest='self_att_heads', default=8, type=int)
     parser.add_argument('--cross_att_heads', dest='cross_att_heads', default=8, type=int)
 
@@ -43,6 +43,7 @@ def make_args():
     parser.add_argument('--p', dest='p', default=1e-3, type=float)
     parser.add_argument('--a', dest='a', default=1e-3, type=float)
     parser.add_argument('--warmup_steps', dest='warmup_steps', default=200, type=float)
+    parser.add_argument('--train_factor', dest='train_factor', default=4, type=float)
     parser.add_argument('--epoch_num', dest='epoch_num', default=201, type=int)   # paper used: 2001
     parser.add_argument('--epoch_log', dest='epoch_log', default=50, type=int)  # test every
     parser.add_argument('--epoch_save', dest='epoch_save', default=50, type=int)  # save every
