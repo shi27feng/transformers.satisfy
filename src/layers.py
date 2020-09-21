@@ -179,6 +179,7 @@ class HGAConv(MessagePassing):
         self.add_self_loops = use_self_loops
 
         if isinstance(in_channels, int):
+            print("in_channels: ", in_channels, "; heads: ", heads, "; out_channels: ", out_channels)
             self.lin_l = Linear(in_channels, heads * out_channels, bias=False)
             self.lin_r = self.lin_l
         else:
@@ -242,6 +243,7 @@ class HGAConv(MessagePassing):
         else:
             x_l, x_r = x[0], x[1]
         assert x_l.dim() == 2, 'Static graphs not supported in `HGAConv`.'
+        print("x_l size: ", x_l.size())
         x_l = self.lin_l(x_l).view(-1, h, c)  # dims: (N, h, c)
         alpha_l = (x_l * self.att_l).sum(dim=-1)
         if x_r is not None:

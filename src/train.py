@@ -51,7 +51,8 @@ def run_epoch(data_loader,
 
 def main():
     args = make_args()
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
+    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # download and save the dataset
     dataset = SATDataset(args.root, args.dataset, use_negative=False)
