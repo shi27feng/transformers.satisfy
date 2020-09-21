@@ -80,6 +80,7 @@ class SimpleLossCompute2(nn.Module, ABC):
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
         sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
+        sm = sm + 0.05
         log_smooth = torch.log(sm)
         _loss = -torch.sum(log_smooth)
 

@@ -102,6 +102,22 @@ def draw_graph_list(graphs, row, col, filename='figures/test', layout='spring', 
     plt.savefig(filename + '.png', dpi=600)
     plt.close()
 
+def make_checkpoint(path, epoch, model, optimizer, loss):
+    torch.save({
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'loss': loss,
+    }, path)
+
+
+def load_checkpoint(path, model, optimizer):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    epoch = checkpoint['epoch']
+    loss = checkpoint['loss']
+    return epoch, loss
 
 if __name__ == '__main__':
     import os
