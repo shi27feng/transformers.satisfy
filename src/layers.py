@@ -18,7 +18,7 @@ from utils import self_loop_augment
 
 def clones(module, k):
     return nn.ModuleList(
-        copy.deepcopy(module(i)) for i in range(k)
+        copy.deepcopy(module) for i in range(k)
     )
 
 
