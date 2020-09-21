@@ -27,7 +27,7 @@ def make_args():
                         help='whether speedup')
     parser.add_argument('--load_model', dest='load_model', default=False, type=bool,
                         help='whether load_model')
-    parser.add_argument('--batch_size', dest='batch_size', default=64,
+    parser.add_argument('--batch_size', dest='batch_size', default=1,
                         type=int)  # implemented via accumulating gradient
     parser.add_argument('--num_layers', dest='num_layers', default=2, type=int)
     parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=2, type=int)
@@ -39,11 +39,11 @@ def make_args():
     parser.add_argument('--cross_att_heads', dest='cross_att_heads', default=8, type=int)
 
     # Training Setting up
-    parser.add_argument('--lr', dest='lr', default=1e-3, type=float)
+    parser.add_argument('--lr', dest='lr', default=1e-6, type=float)
     parser.add_argument('--p', dest='p', default=1e-3, type=float)
     parser.add_argument('--a', dest='a', default=1e-3, type=float)
     parser.add_argument('--warmup_steps', dest='warmup_steps', default=200, type=float)
-    parser.add_argument('--train_factor', dest='train_factor', default=4, type=float)
+    parser.add_argument('--opt_train_factor', dest='opt_train_factor', default=4, type=float)
     parser.add_argument('--epoch_num', dest='epoch_num', default=201, type=int)   # paper used: 2001
     parser.add_argument('--epoch_log', dest='epoch_log', default=50, type=int)  # test every
     parser.add_argument('--epoch_save', dest='epoch_save', default=50, type=int)  # save every

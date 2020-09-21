@@ -9,6 +9,8 @@ import numpy as np
 import os.path as osp
 from os import listdir, rmdir
 from shutil import move
+
+import torch
 from torch_geometric.utils import remove_self_loops, add_self_loops
 
 
@@ -102,6 +104,7 @@ def draw_graph_list(graphs, row, col, filename='figures/test', layout='spring', 
     plt.savefig(filename + '.png', dpi=600)
     plt.close()
 
+
 def make_checkpoint(path, epoch, model, optimizer, loss):
     torch.save({
         'epoch': epoch,
@@ -118,6 +121,7 @@ def load_checkpoint(path, model, optimizer):
     epoch = checkpoint['epoch']
     loss = checkpoint['loss']
     return epoch, loss
+
 
 if __name__ == '__main__':
     import os

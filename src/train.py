@@ -12,6 +12,8 @@ from models import make_model
 from optimizer import get_std_opt
 from torch_geometric.data import DataLoader
 
+from utils import make_checkpoint, load_checkpoint
+
 
 def run_epoch(data_loader,
               model,
@@ -35,13 +37,14 @@ def run_epoch(data_loader,
                          desc=desc):
         batch = batch.to(device)
         with torch.set_grad_enabled(is_train):
-            xv, vc = model(batch)
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
+            xv = model(batch.xv, batch.xc, adj_pos, adj_neg)
             loss = loss_compute(xv, adj_pos, adj_neg)
             total_loss += loss
     elapsed = time.time() - start
     num_items = len(data_loader)
     print('average loss: {}; average time: {}'.format(total_loss / num_items, elapsed / num_items))
+    return total_loss
     # TODO accuracy
     # print('accuracy: {}'.format(loss_compute.accuracy))
 
@@ -67,31 +70,32 @@ def main():
 
     # criterion = LabelSmoothing(V, padding_idx=dataset.pad_id, smoothing=0.1)
     # make_model black box
-    if args.load_model:
-        model = torch.load(args.save_root).to(device)
-    else:
-        model = make_model(args).to(device)
-
+    model = make_model(args).to(device)
     opt = get_std_opt(model, args)
+    last_epoch = 0
+    if args.load_model:
+        last_epoch, loss = load_checkpoint(args.save_root, model, opt)
+
     loss_compute = SimpleLossCompute2(args.p, args.a, device, opt)
 
-    for epoch in range(args.epoch_num):
+    for epoch in range(last_epoch, args.epoch_num):
         # print('Epoch: {} Training...'.format(epoch))
         model.train(True)
-        run_epoch(train_loader, model, loss_compute, device, is_train=True,
-                  desc="Train Epoch {}".format(epoch))
+        total_loss = run_epoch(train_loader, model, loss_compute, device, is_train=True,
+                               desc="Train Epoch {}".format(epoch))
         print('Epoch: {} Evaluating...'.format(epoch))
         # TODO Save model
         if epoch % args.epoch_save == 0:
-            torch.save(model, args.save_root)
+            make_checkpoint(args.save_root, epoch, model, opt, total_loss)
+
         # Validation
         model.eval()
-        run_epoch(valid_loader, model, loss_compute, device, is_train=False,
-                  desc="\t Valid Epoch {}".format(epoch))
+        total_loss = run_epoch(valid_loader, model, loss_compute, device, is_train=False,
+                               desc="\t Valid Epoch {}".format(epoch))
 
     print('Testing...')
     model.eval()
-    run_epoch(test_loader, model, loss_compute, device, is_train=False)
+    total_loss = run_epoch(test_loader, model, loss_compute, device, is_train=False)
 
 
 if __name__ == "__main__":

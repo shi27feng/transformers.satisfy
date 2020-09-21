@@ -15,7 +15,7 @@ class Encoder(nn.Module, ABC):
     def __init__(self, args):
         super(Encoder, self).__init__()
         self.cached_adj = None
-
+        self.device = 'cuda' if args.gpu and torch.cuda.is_available() else 'cpu'
         self.cached_cls_pos_pos = None
         self.cached_cls_pos_neg = None
         self.cached_cls_neg_pos = None
@@ -44,7 +44,7 @@ class Encoder(nn.Module, ABC):
         """
         if self.cached_adj is None:
             self.cached_adj = [adj_pos, adj_neg]
-            self._meta_paths_(adj_pos=adj_pos, adj_neg=adj_neg)
+            self._meta_paths_(adj_pos=adj_pos, adj_neg=adj_neg, device=self.device)
 
         meta_paths_lit = [self.cached_lit_pos_pos,
                           self.cached_lit_pos_neg,
@@ -61,11 +61,11 @@ class Encoder(nn.Module, ABC):
                       self.adj_pos, self.adj_neg)
         return self.norm(xv), self.norm(xc)
 
-    def _meta_paths_(self, adj_pos, adj_neg):
+    def _meta_paths_(self, adj_pos, adj_neg, device):
         if self.cached_adj is not None:
             adj_pos, adj_neg = self.cached_adj
-        val_pos = torch.ones(adj_pos.size(1))
-        val_neg = torch.ones(adj_neg.size(1))
+        val_pos = torch.ones(adj_pos.size(1)).to(device)
+        val_neg = torch.ones(adj_neg.size(1)).to(device)
         m = maybe_num_nodes(adj_pos[0], adj_neg[0])
         n = maybe_num_nodes(adj_pos[1], adj_neg[1])
         adj_pos_t, _ = transpose(adj_pos, val_pos, m, n)
@@ -101,11 +101,13 @@ class Decoder(nn.Module, ABC):
         ])
 
         self.norm = LayerNorm(channels[-1])
+        self.last_layer = nn.Linear(channels[-1], 1)
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         for layer in self.layers:
             xv, xc = layer(xv, xc, adj_pos, adj_neg)
-        return self.norm(xv), self.norm(xc)
+        # return self.norm(xv), self.norm(xc)
+        return self.last_layer(self.norm(xv))
 
 
 class GraphTransformer(nn.Module, ABC):
