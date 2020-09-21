@@ -44,32 +44,32 @@ class Encoder(nn.Module, ABC):
         """
         if self.cached_adj is None:
             self.cached_adj = [adj_pos, adj_neg]
-            self._meta_paths_(adj_pos=adj_pos, adj_neg=adj_neg, device=self.device)
+            self._meta_paths_(adj_pos, adj_neg, device=self.device)
 
-        meta_paths_lit = [self.cached_lit_pos_pos,
+        meta_paths_lit = [self.cached_lit_pos_pos,   # $$A \times A^T$$
                           self.cached_lit_pos_neg,
                           self.cached_lit_neg_pos,
                           self.cached_lit_neg_neg]
-        meta_paths_cls = [self.cached_cls_pos_pos,
+        meta_paths_cls = [self.cached_cls_pos_pos,   # $$A^T \times A$$
                           self.cached_cls_pos_neg,
                           self.cached_cls_neg_pos,
                           self.cached_cls_neg_neg]
         for layer in self.layers:
-            x = layer(xv,
-                      xc,
-                      meta_paths_lit, meta_paths_cls,
-                      self.adj_pos, self.adj_neg)
+            xv, xc = layer(xv, xc,
+                           meta_paths_lit, meta_paths_cls,
+                           adj_pos, adj_neg)
         return self.norm(xv), self.norm(xc)
 
     def _meta_paths_(self, adj_pos, adj_neg, device):
-        if self.cached_adj is not None:
-            adj_pos, adj_neg = self.cached_adj
+        # if self.cached_adj is not None:
+        #     adj_pos, adj_neg = self.cached_adj
         val_pos = torch.ones(adj_pos.size(1)).to(device)
         val_neg = torch.ones(adj_neg.size(1)).to(device)
-        m = maybe_num_nodes(adj_pos[0], adj_neg[0])
-        n = maybe_num_nodes(adj_pos[1], adj_neg[1])
+        m = max(maybe_num_nodes(adj_pos[0]), maybe_num_nodes(adj_neg[0]))
+        n = max(maybe_num_nodes(adj_pos[1]), maybe_num_nodes(adj_neg[1]))
+        print("edge pos: {}; edge neg: {}; m: {}; n: {}".format(adj_pos.size(1), adj_neg.size(1), m, n))
         adj_pos_t, _ = transpose(adj_pos, val_pos, m, n)
-        adj_neg_t, _ = transpose(adj_neg, val_pos, m, n)
+        adj_neg_t, _ = transpose(adj_neg, val_neg, m, n)
 
         self.cached_cls_pos_pos, self.cached_cls_pos_neg, self.cached_cls_neg_pos, self.cached_cls_neg_neg = \
             self._cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n)
@@ -78,12 +78,12 @@ class Encoder(nn.Module, ABC):
             self._cross_product(adj_pos_t, adj_pos, adj_neg_t, adj_neg, val_pos, val_neg, n, m)
 
     @staticmethod
-    def _cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n):
+    def _cross_product(adj_p, adj_p_t, adj_n, adj_n_t, val_p, val_n, m, n):
         # cross product: $A \times A^T$
-        return spspmm(adj_pos, val_pos, adj_pos_t, val_pos, m, n, m), \
-               spspmm(adj_pos, val_pos, adj_neg_t, val_neg, m, n, m), \
-               spspmm(adj_neg, val_neg, adj_pos_t, val_pos, m, n, m), \
-               spspmm(adj_neg, val_neg, adj_neg_t, val_neg, m, n, m)
+        return spspmm(adj_p, val_p, adj_p_t, val_p, m, n, m), \
+               spspmm(adj_p, val_p, adj_n_t, val_n, m, n, m), \
+               spspmm(adj_n, val_n, adj_p_t, val_p, m, n, m), \
+               spspmm(adj_n, val_n, adj_n_t, val_n, m, n, m)
 
 
 class Decoder(nn.Module, ABC):
@@ -139,5 +139,5 @@ def make_model(args):
     # Initialize parameters with Glorot / fan_avg.
     for p in model.parameters():
         if p.dim() > 1:
-            nn.init.xavier_uniform(p)
+            nn.init.xavier_uniform_(p)
     return model
