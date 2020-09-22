@@ -15,7 +15,7 @@ class Encoder(nn.Module, ABC):
     def __init__(self, args):
         super(Encoder, self).__init__()
         self.cached_adj = None
-        self.device = 'cuda' if args.gpu and torch.cuda.is_available() else 'cpu'
+        self.device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
         self.cached_cls_pos_pos = None
         self.cached_cls_pos_neg = None
         self.cached_cls_neg_pos = None
@@ -63,8 +63,8 @@ class Encoder(nn.Module, ABC):
     def _meta_paths_(self, adj_pos, adj_neg, device):
         # if self.cached_adj is not None:
         #     adj_pos, adj_neg = self.cached_adj
-        val_pos = torch.ones(adj_pos.size(1)).to(device)
-        val_neg = torch.ones(adj_neg.size(1)).to(device)
+        val_pos = torch.ones(adj_pos.size(1), device=self.device)
+        val_neg = torch.ones(adj_neg.size(1), device=self.device)
         m = max(maybe_num_nodes(adj_pos[0]), maybe_num_nodes(adj_neg[0]))
         n = max(maybe_num_nodes(adj_pos[1]), maybe_num_nodes(adj_neg[1]))
         print("edge pos: {}; edge neg: {}; m: {}; n: {}".format(adj_pos.size(1), adj_neg.size(1), m, n))

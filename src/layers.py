@@ -182,6 +182,7 @@ class HGAConv(MessagePassing):
 
         if isinstance(in_channels, int):
             self.lin_l = Linear(in_channels, out_channels, bias=False)
+
             self.lin_r = self.lin_l
         else:
             self.lin_l = Linear(in_channels[0], out_channels, False)
