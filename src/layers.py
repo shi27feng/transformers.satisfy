@@ -81,16 +81,18 @@ class EncoderLayer(nn.Module, ABC):
         self.cls_path_weights = nn.Parameter(torch.ones(num_meta_paths))
 
         self.self_lit_attentions = clones(HGAConv(
-            in_channels, hidden_dims, heads=self_att_heads), num_meta_paths)
+            hidden_dims, hidden_dims, heads=self_att_heads), num_meta_paths)
         self.self_cls_attentions = clones(HGAConv(
-            in_channels, hidden_dims, heads=self_att_heads), num_meta_paths)
+            hidden_dims, hidden_dims, heads=self_att_heads), num_meta_paths)
 
-        self.sublayer_lit = clones(SublayerConnection(in_channels, drop_rate), num_meta_paths)
-        self.sublayer_cls = clones(SublayerConnection(in_channels, drop_rate), num_meta_paths)
+        self.sublayer_lit = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
+        self.sublayer_cls = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
         self.cross_attention_pos = HGAConv((hidden_dims, hidden_dims),
                                            out_channels, heads=cross_att_heads)
         self.cross_attention_neg = HGAConv((hidden_dims, hidden_dims),
                                            out_channels, heads=cross_att_heads)
+        self.lit_embedding = Linear(in_channels, hidden_dims, False)
+        self.cls_embedding = Linear(in_channels, hidden_dims, False)
 
     @staticmethod
     def _attention_meta_path(x, meta_paths, att_layers, sublayers, path_weights):
@@ -105,6 +107,8 @@ class EncoderLayer(nn.Module, ABC):
     def forward(self, xv, xc, meta_paths_lit, meta_paths_cls, adj_pos, adj_neg):
         # xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.lit_path_weights)
         # xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.cls_path_weights)
+        xv = self.lit_embedding(xv)
+        xc = self.cls_embedding(xc)
         xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.sublayer_lit, self.lit_path_weights)
         xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.sublayer_cls, self.cls_path_weights)
         '''
@@ -165,10 +169,10 @@ class HGAConv(MessagePassing):
                  in_channels: Union[int, Tuple[int, int]],
                  out_channels: int,
                  heads: int = 1,
-                 concat: bool = True,
+                 concat: bool = False,
                  negative_slope: float = 0.2,
                  dropout: float = 0.,
-                 use_self_loops: bool = True,
+                 use_self_loops: bool = False,   # Set to False for debug
                  bias: bool = True, **kwargs):
         super(HGAConv, self).__init__(aggr='add', node_dim=0, **kwargs)
 
@@ -210,7 +214,7 @@ class HGAConv(MessagePassing):
         zeros(self.bias)
 
     @staticmethod
-    def edge_score(adj, a_l, a_r):
+    def edge_score(adj, a_l, a_r, is_cross):
         """
         Args:
             adj: adjacency matrix [2, num_edges] or (heads, [2, num_edges])
@@ -218,7 +222,7 @@ class HGAConv(MessagePassing):
             a_r: Tensor           [num_nodes, heads]
         """
         if isinstance(adj, Tensor):
-            return a_l[adj[0], :] + a_r[adj[1], :]  # [num_edges, heads]
+            return a_l[adj[1], :] + a_r[adj[0], :]  # [num_edges, heads]
         a = []
         for i in range(len(adj)):
             a[i] = a_l[adj[i][0], i] + a_r[adj[i][1], i]
@@ -260,7 +264,7 @@ class HGAConv(MessagePassing):
             num_nodes = size[1] if size is not None else num_nodes
             num_nodes = x_r.size(0) if x_r is not None else num_nodes
             if isinstance(adj, Tensor):
-                adj = self_loop_augment(num_nodes, adj)
+                adj = self_loop_augment(num_nodes, adj)  # TODO Bug found
             else:
                 for i in range(len(adj)):
                     adj[i] = self_loop_augment(num_nodes, adj[i])
@@ -278,10 +282,10 @@ class HGAConv(MessagePassing):
 
         if self.concat:  # TODO if 'out' is Tuple(Tensor, Tensor)
             if isinstance(out, Tensor):
-                out = out.view(-1, self.heads * self.out_channels)
+                out = out.reshape(-1, self.heads * self.out_channels)
             else:
-                out = (out[0].view(-1, self.heads * self.out_channels),
-                       out[1].view(-1, self.heads * self.out_channels))
+                out = (out[0].reshape(-1, self.heads * self.out_channels),
+                       out[1].reshape(-1, self.heads * self.out_channels))
         else:
             if isinstance(out, Tensor):
                 out = out.mean(dim=1)
@@ -304,7 +308,8 @@ class HGAConv(MessagePassing):
 
         x = kwargs.get('x', Pr.empty)  # OptPairTensor
         alpha = kwargs.get('alpha', Pr.empty)  # PairTensor
-        score = self.edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1])
+        score = self.edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1], is_cross=isinstance(x, Tensor))
+
         out = self.message_and_aggregate(adj, x=x, score=score)
 
         return self.update(out)
@@ -348,7 +353,7 @@ class HGAConv(MessagePassing):
         else:
             adj, alpha = batched_transpose(adj, alpha)
             out_l = batched_spmm(alpha, adj, x_r)
-            return out_.permute(1, 0, 2), out_l.permute(1, 0, 2)
+            return out_l.permute(1, 0, 2), out_.permute(1, 0, 2)
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
@@ -380,8 +385,11 @@ if __name__=="__main__":
     #from torchvision import models
     #model = models.vgg16()
     print(model)
-
+    
     literal_assignment = model(xv, xc, edge_index_pos, edge_index_neg)
-    loss_func = loss_func = SimpleLossCompute(par_sm, par_sg, "cuda")
-    loss_of_this_assignent = loss_func(x_s, edge_index_pos, edge_index_neg)
+    from loss import SimpleLossCompute2
+    loss_func = SimpleLossCompute2(30, 100)
+    loss_of_this_assignent = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
+    print(f"loss_of_this_assignent: {loss_of_this_assignent}")
+    print("End of program")
    

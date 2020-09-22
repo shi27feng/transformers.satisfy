@@ -18,7 +18,7 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
     num_nodes, channels = x.size()
     # preparation of data
     x_ = torch.cat(heads * [x])  # duplicate x for heads times
-    nzt_ = nzt.view(1, -1)
+    nzt_ = nzt.view(-1)
     if isinstance(adj, Tensor):
         m = maybe_num_nodes(adj[0], m)
         n = max(num_nodes, maybe_num_nodes(adj[1], n))
