@@ -26,7 +26,7 @@ dataset/domset/
 dataset/kclique/
 dataset/kcolor/
 dataset/kcover/
-dataset/raw/
+# dataset/raw/
 dataset/processed/
 
 *.egg-info/
