@@ -15,7 +15,7 @@ class BipartiteData(Data):
 
     def __inc__(self, key, value):
         if key in ['edge_index_pos', 'edge_index_neg']:
-            return torch.tensor([[self.xv.size(0)], [self.xc.size(0)]])
+            return torch.tensor([[self.xc.size(0)], [self.xv.size(0)]])
         else:
             return super(BipartiteData, self).__inc__(key, value)
 

@@ -335,9 +335,11 @@ class HGAConv(MessagePassing):
         n, m = 0, 0
         if isinstance(x, Tensor):
             x_l = x
+            n = m = x_l.size(0)
         else:
             x_l, x_r = x[0], x[1]
             (m, c2) = x_r.size()
+            n = x_l.size(0)
             out_l = torch.zeros((m, c2, self.heads))
 
         if isinstance(adj, Tensor):
@@ -347,12 +349,12 @@ class HGAConv(MessagePassing):
             for i in range(self.heads):
                 alpha.append(self._attention(adj[i], score[i]))
 
-        out_ = batched_spmm(alpha, adj, x_l)
+        out_ = batched_spmm(alpha, adj, x_l, m, n)
         if x_r is None:
             return out_.permute(1, 0, 2)
         else:
             adj, alpha = batched_transpose(adj, alpha)
-            out_l = batched_spmm(alpha, adj, x_r)
+            out_l = batched_spmm(alpha, adj, x_r, n, m)
             return out_l.permute(1, 0, 2), out_.permute(1, 0, 2)
 
     def __repr__(self):
@@ -363,6 +365,7 @@ class HGAConv(MessagePassing):
 if __name__=="__main__":
     import models
     from args import make_args
+    from torch_geometric.data import DataLoader
     args = make_args()
 
     from data import SATDataset
@@ -371,25 +374,30 @@ if __name__=="__main__":
     train_ds = ds[: last_trn]
     valid_ds = ds[last_trn: last_val]
     test_ds = ds[last_val:]
+    from loss import SimpleLossCompute2
+    model = models.make_model(args)
 
-    test_data = train_ds[1]
+
+    loader = DataLoader(ds, batch_size=8)
+    test_data = next(iter(loader))
     edge_index_pos = test_data.edge_index_pos
     edge_index_neg = test_data.edge_index_neg
-    xv = torch.rand(50, 1)
-    xc = torch.ones(218, 1)
-    variable_count = max(max(edge_index_pos[1]), max(edge_index_neg[1]))+1
-    clause_count = max(max(edge_index_pos[0]), max(edge_index_neg[0]))+1
+    num_clause = max(max(edge_index_pos[0]), max(edge_index_neg[0])) + 1
+    num_variable = max(max(edge_index_pos[1]), max(edge_index_neg[1])) + 1
     edge_count = len(edge_index_pos[1])
 
-    model = models.make_model(args)
-    #from torchvision import models
-    #model = models.vgg16()
-    print(model)
-    
+    print(f"edge_index_pos[0]: {max(edge_index_pos[0])}")
+    print(f"edge_index_neg[0]: {max(edge_index_neg[0])}")
+    print(num_clause)
+    print(num_variable)
+    print()
+    xv = test_data.xv
+    xc = test_data.xc
     literal_assignment = model(xv, xc, edge_index_pos, edge_index_neg)
-    from loss import SimpleLossCompute2
     loss_func = SimpleLossCompute2(30, 100)
-    loss_of_this_assignent = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
-    print(f"loss_of_this_assignent: {loss_of_this_assignent}")
-    print("End of program")
+    print(literal_assignment.shape)
+    print()
+    #loss_of_this_assignent = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
+    #print(f"loss_of_this_assignent: {loss_of_this_assignent}")
+    #print("End of program")
    
