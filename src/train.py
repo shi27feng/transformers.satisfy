@@ -77,7 +77,7 @@ def main():
     if args.load_model:
         last_epoch, loss = load_checkpoint(args.save_root, model, opt)
 
-    loss_compute = SimpleLossCompute2(args.p, args.a, device, opt)
+    loss_compute = SimpleLossCompute2(args.p, args.a, opt)
 
     for epoch in range(last_epoch, args.epoch_num):
         # print('Epoch: {} Training...'.format(epoch))

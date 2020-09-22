@@ -101,6 +101,7 @@ class EncoderLayer(nn.Module, ABC):
         # TODO try to use batched matrix for meta-paths
         #   e.g. concatenate adj of meta-path as one diagonalized matrix, and stack x
         for i in range(len(att_layers)):  # they are not sequential, but in reduction mode
+            print(" debug 1: ", x.shape)
             res += path_weights[i] * sublayers[i](x, att_layers[i](x, meta_paths[i][0]))  # TODO 
         return res
 
@@ -109,14 +110,16 @@ class EncoderLayer(nn.Module, ABC):
         # xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.cls_path_weights)
         xv = self.lit_embedding(xv)
         xc = self.cls_embedding(xc)
-        xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.sublayer_lit, self.lit_path_weights)
-        xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.sublayer_cls, self.cls_path_weights)
-        '''
-        xc = self.sublayer_cls(xc, lambda x: self._attention_meta_path(x,
-                                                                       meta_paths_cls,
-                                                                       self.self_cls_attentions,
-                                                                       self.cls_path_weights))
-        '''
+        xv = self._attention_meta_path(xv,
+                                       meta_paths_lit, self.self_lit_attentions,
+                                       self.sublayer_lit, self.lit_path_weights)
+        xc = self._attention_meta_path(xc,
+                                       meta_paths_cls, self.self_cls_attentions,
+                                       self.sublayer_cls, self.cls_path_weights)
+        # xc = self.sublayer_cls(xc, lambda x: self._attention_meta_path(x,
+        #                                                                meta_paths_cls,
+        #                                                                self.self_cls_attentions,
+        #                                                                self.cls_path_weights))
         xv_pos, xc_pos = self.cross_attention_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.cross_attention_neg((xv, xc), adj_neg)
         return xv_pos + xv_neg, xc_pos + xc_neg  # TODO is xv_pos + xv_neg appropriate?
@@ -225,7 +228,7 @@ class HGAConv(MessagePassing):
             return a_l[adj[1], :] + a_r[adj[0], :]  # [num_edges, heads]
         a = []
         for i in range(len(adj)):
-            a[i] = a_l[adj[i][0], i] + a_r[adj[i][1], i]
+            a[i] = a_l[adj[i][1], i] + a_r[adj[i][0], i]
         return a  # (heads, [num_edges, 1])
 
     def forward(self, x, adj, size=None, return_attention_weights=None):
