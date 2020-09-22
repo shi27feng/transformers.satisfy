@@ -67,7 +67,7 @@ class Encoder(nn.Module, ABC):
         val_neg = torch.ones(adj_neg.size(1), device=self.device)
         m = max(maybe_num_nodes(adj_pos[0]), maybe_num_nodes(adj_neg[0]))
         n = max(maybe_num_nodes(adj_pos[1]), maybe_num_nodes(adj_neg[1]))
-        print("edge pos: {}; edge neg: {}; m: {}; n: {}".format(adj_pos.size(1), adj_neg.size(1), m, n))
+        # print("edge pos: {}; edge neg: {}; m: {}; n: {}".format(adj_pos.size(1), adj_neg.size(1), m, n))
         adj_pos_t, _ = transpose(adj_pos, val_pos, m, n)
         adj_neg_t, _ = transpose(adj_neg, val_neg, m, n)
 
