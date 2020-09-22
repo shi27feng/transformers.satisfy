@@ -3,7 +3,7 @@ from abc import ABC
 
 import torch
 import torch.nn as nn
-
+from torch.nn.functional import softmax
 from layers import clones, LayerNorm, SublayerConnection, EncoderLayer, DecoderLayer
 from torch_sparse import spspmm, transpose
 from torch_geometric.utils.num_nodes import maybe_num_nodes
@@ -101,13 +101,13 @@ class Decoder(nn.Module, ABC):
         ])
 
         self.norm = LayerNorm(channels[-1])
-        self.last_layer = nn.Linear(channels[-1], 1)
+        self.last_layer = nn.Linear(channels[-1], 2)
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         for layer in self.layers:
             xv, xc = layer(xv, xc, adj_pos, adj_neg)
         # return self.norm(xv), self.norm(xc)
-        return self.last_layer(self.norm(xv))
+        return torch.unsqueeze(softmax(self.last_layer(self.norm(xv)), dim=1)[:, 0], 1) # First column represents closeness to 1
 
 
 class GraphTransformer(nn.Module, ABC):

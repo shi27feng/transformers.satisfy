@@ -101,7 +101,6 @@ class EncoderLayer(nn.Module, ABC):
         # TODO try to use batched matrix for meta-paths
         #   e.g. concatenate adj of meta-path as one diagonalized matrix, and stack x
         for i in range(len(att_layers)):  # they are not sequential, but in reduction mode
-            print(" debug 1: ", x.shape)
             res += path_weights[i] * sublayers[i](x, att_layers[i](x, meta_paths[i][0]))  # TODO 
         return res
 
@@ -388,6 +387,8 @@ if __name__=="__main__":
     num_clause = max(max(edge_index_pos[0]), max(edge_index_neg[0])) + 1
     num_variable = max(max(edge_index_pos[1]), max(edge_index_neg[1])) + 1
     edge_count = len(edge_index_pos[1])
+    from optimizer import get_std_opt
+    opt = get_std_opt(model, args)
 
     print(f"edge_index_pos[0]: {max(edge_index_pos[0])}")
     print(f"edge_index_neg[0]: {max(edge_index_neg[0])}")
@@ -397,10 +398,10 @@ if __name__=="__main__":
     xv = test_data.xv
     xc = test_data.xc
     literal_assignment = model(xv, xc, edge_index_pos, edge_index_neg)
-    loss_func = SimpleLossCompute2(30, 100)
+    loss_func = SimpleLossCompute2(30, 100, opt)
     print(literal_assignment.shape)
-    print()
-    #loss_of_this_assignent = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
+    loss_of_this_assignent = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
+    print(loss_of_this_assignent)
     #print(f"loss_of_this_assignent: {loss_of_this_assignent}")
     #print("End of program")
    
