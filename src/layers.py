@@ -50,6 +50,8 @@ class SublayerConnection(nn.Module, ABC):
 
     def forward(self, x, sublayer):
         """Apply residual connection to any sublayer function that maintains the same in_channels."""
+        if isinstance(sublayer, Tensor):
+            return x + self.dropout(self.norm(sublayer))  # TODO check reverse order of norm and sublayer
         return x + self.dropout(sublayer(self.norm(x)))
         # if x is Tensor:
         #     return x + self.dropout(sublayer(self.norm(x)))
@@ -83,34 +85,34 @@ class EncoderLayer(nn.Module, ABC):
         self.self_cls_attentions = clones(HGAConv(
             in_channels, hidden_dims, heads=self_att_heads), num_meta_paths)
 
-        self.sublayer_lit = SublayerConnection(hidden_dims, drop_rate)
-        self.sublayer_cls = SublayerConnection(hidden_dims, drop_rate)
+        self.sublayer_lit = clones(SublayerConnection(in_channels, drop_rate), num_meta_paths)
+        self.sublayer_cls = clones(SublayerConnection(in_channels, drop_rate), num_meta_paths)
         self.cross_attention_pos = HGAConv((hidden_dims, hidden_dims),
                                            out_channels, heads=cross_att_heads)
         self.cross_attention_neg = HGAConv((hidden_dims, hidden_dims),
                                            out_channels, heads=cross_att_heads)
 
     @staticmethod
-    def _attention_meta_path(x, meta_paths, layers, path_weights):
-        assert len(layers) == len(meta_paths), "the length should match"
+    def _attention_meta_path(x, meta_paths, att_layers, sublayers, path_weights):
+        assert len(att_layers) == len(meta_paths), "the length should match"
         res = torch.zeros(x.shape)
         # TODO try to use batched matrix for meta-paths
         #   e.g. concatenate adj of meta-path as one diagonalized matrix, and stack x
-        for i in range(len(layers)):  # they are not sequential, but in reduction mode
-            res += path_weights[i] * layers[i](x, meta_paths[i])
+        for i in range(len(att_layers)):  # they are not sequential, but in reduction mode
+            res += path_weights[i] * sublayers[i](x, att_layers[i](x, meta_paths[i][0]))  # TODO 
         return res
 
     def forward(self, xv, xc, meta_paths_lit, meta_paths_cls, adj_pos, adj_neg):
         # xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.lit_path_weights)
         # xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.cls_path_weights)
-        xv = self.sublayer_lit(xv, lambda x: self._attention_meta_path(x,
-                                                                       meta_paths_lit,
-                                                                       self.self_lit_attentions,
-                                                                       self.lit_path_weights))
+        xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.sublayer_lit, self.lit_path_weights)
+        xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.sublayer_cls, self.cls_path_weights)
+        '''
         xc = self.sublayer_cls(xc, lambda x: self._attention_meta_path(x,
                                                                        meta_paths_cls,
                                                                        self.self_cls_attentions,
                                                                        self.cls_path_weights))
+        '''
         xv_pos, xc_pos = self.cross_attention_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.cross_attention_neg((xv, xc), adj_neg)
         return xv_pos + xv_neg, xc_pos + xc_neg  # TODO is xv_pos + xv_neg appropriate?
@@ -179,17 +181,17 @@ class HGAConv(MessagePassing):
         self.add_self_loops = use_self_loops
 
         if isinstance(in_channels, int):
-            self.lin_l = Linear(in_channels, heads * out_channels, bias=False)
+            self.lin_l = Linear(in_channels, out_channels, bias=False)
             self.lin_r = self.lin_l
         else:
-            self.lin_l = Linear(in_channels[0], heads * out_channels, False)
-            self.lin_r = Linear(in_channels[1], heads * out_channels, False)
+            self.lin_l = Linear(in_channels[0], out_channels, False)
+            self.lin_r = Linear(in_channels[1], out_channels, False)
 
-        self.att_l = Parameter(torch.Tensor(1, heads, out_channels))
-        self.att_r = Parameter(torch.Tensor(1, heads, out_channels))
+        self.att_l = Parameter(torch.Tensor(out_channels, heads))
+        self.att_r = Parameter(torch.Tensor(out_channels, heads))
 
         if bias and concat:
-            self.bias = Parameter(torch.Tensor(heads * out_channels))
+            self.bias = Parameter(torch.Tensor(out_channels * heads))
         elif bias and not concat:
             self.bias = Parameter(torch.Tensor(out_channels))
         else:
@@ -211,8 +213,8 @@ class HGAConv(MessagePassing):
         """
         Args:
             adj: adjacency matrix [2, num_edges] or (heads, [2, num_edges])
-            a_l: Tensor           [N, heads]
-            a_r: Tensor           [N, heads]
+            a_l: Tensor           [num_nodes, heads]
+            a_r: Tensor           [num_nodes, heads]
         """
         if isinstance(adj, Tensor):
             return a_l[adj[0], :] + a_r[adj[1], :]  # [num_edges, heads]
@@ -242,14 +244,13 @@ class HGAConv(MessagePassing):
         else:
             x_l, x_r = x[0], x[1]
         assert x_l.dim() == 2, 'Static graphs not supported in `HGAConv`.'
-        x_l = self.lin_l(x_l).view(-1, h, c)  # dims: (N, h, c)
-        alpha_l = (x_l * self.att_l).sum(dim=-1)
+        x_l = self.lin_l(x_l)
+        alpha_l = torch.mm(x_l, self.att_l)
         if x_r is not None:
-            x_r = self.lin_r(x_r).view(-1, h, c)  # dims: (N, h, c)
-            alpha_r = (x_r * self.att_r).sum(dim=-1)  # reduce((N, h, c) x (h, c), c) = (N, h)
+            x_r = self.lin_r(x_r)
+            alpha_r = torch.mm(x_r, self.att_r)
         else:
-            alpha_r = (x_l * self.att_r).sum(dim=-1)
-
+            alpha_r = torch.mm(x_l, self.att_r)
         assert x_l is not None
         assert alpha_l is not None
 
@@ -264,9 +265,11 @@ class HGAConv(MessagePassing):
                     adj[i] = self_loop_augment(num_nodes, adj[i])
 
         # propagate_type: (x: OptPairTensor, alpha: OptPairTensor)
+        xpar = (x_l, x_r) if x_r is not None else x_l
+        alphapar = (alpha_l, alpha_r)
         out = self.propagate(adj,
-                             x=(x_l, x_r),
-                             alpha=(alpha_l, alpha_r),
+                             x = xpar,
+                             alpha = alphapar,
                              size=size)
 
         alpha = self._alpha
@@ -350,3 +353,34 @@ class HGAConv(MessagePassing):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
                                              self.in_channels,
                                              self.out_channels, self.heads)
+
+if __name__=="__main__":
+    import models
+    from args import make_args
+    args = make_args()
+
+    from data import SATDataset
+    ds = SATDataset('dataset', 'RND3SAT/uf50-218', False)
+    last_trn, last_val = int(len(ds)), int(len(ds))
+    train_ds = ds[: last_trn]
+    valid_ds = ds[last_trn: last_val]
+    test_ds = ds[last_val:]
+
+    test_data = train_ds[1]
+    edge_index_pos = test_data.edge_index_pos
+    edge_index_neg = test_data.edge_index_neg
+    xv = torch.rand(50, 1)
+    xc = torch.ones(218, 1)
+    variable_count = max(max(edge_index_pos[1]), max(edge_index_neg[1]))+1
+    clause_count = max(max(edge_index_pos[0]), max(edge_index_neg[0]))+1
+    edge_count = len(edge_index_pos[1])
+
+    model = models.make_model(args)
+    #from torchvision import models
+    #model = models.vgg16()
+    print(model)
+
+    literal_assignment = model(xv, xc, edge_index_pos, edge_index_neg)
+    loss_func = loss_func = SimpleLossCompute(par_sm, par_sg, "cuda")
+    loss_of_this_assignent = loss_func(x_s, edge_index_pos, edge_index_neg)
+   

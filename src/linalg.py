@@ -14,14 +14,14 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
         m:   int
         n:   int
     """
-    heads, num_edges = nzt.size()
+    num_edges, heads = nzt.size()
     num_nodes, channels = x.size()
     # preparation of data
     x_ = torch.cat(heads * [x])  # duplicate x for heads times
     nzt_ = nzt.view(1, -1)
     if isinstance(adj, Tensor):
         m = maybe_num_nodes(adj[0], m)
-        n = maybe_num_nodes(adj[1], max(num_nodes, n))
+        n = max(num_nodes, maybe_num_nodes(adj[1], n))
         offset = torch.tensor([[m], [n]])
         adj_ = torch.cat([adj + offset * i for i in range(heads)], dim=1)
     else:  # adj is list of adjacency matrices
