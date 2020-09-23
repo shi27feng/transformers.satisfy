@@ -5,6 +5,21 @@ import torch
 import torch.nn as nn
 from torch_scatter import scatter
 
+class AccuracyCompute(nn.Module):  # TODO add batch
+    def __init__(self):
+        super(AccuracyCompute, self).__init__()
+
+    def __call__(self, xv, adj_pos, adj_neg, batch_size=1):
+        xv = xv.view(-1)
+        xv = xv // 0.5
+        xp = xv[adj_pos[1]]
+        xn = (1 - xv)[adj_neg[1]]
+        x = torch.cat((xp, xn))
+        idx = torch.cat((adj_pos[0], adj_neg[0]))
+        clause_sat = scatter(x, idx, reduce="sum")
+        return min(clause_sat)
+        
+
 
 class LabelSmoothing(nn.Module, ABC):
     def __init__(self):
@@ -135,19 +150,6 @@ if __name__ == "__main__":
         [1, 2],
         [0, 1],
     ])
-    x_s = torch.rand(4, 1)  # 2 nodes.
-    x_t = torch.rand(3, 1)  # 3 nodes.
-    loss_func = SimpleLossCompute(30, 50, "cuda")
-    loss_func2 = SimpleLossCompute2(30, 50, "cuda")
-    start = time.time()
-    loss = loss_func(x_s, edge_index_pos, edge_index_neg)
-    span = time.time() - start
-    print(f"loss  : {loss}, computing time: {span}")
-    start = time.time()
-    loss2 = loss_func2(x_s, edge_index_pos, edge_index_neg)
-    span = time.time() - start
-    print(f"loss2 : {loss2}, computing time: {span}")
-    
-    print(loss2)
 
-    # smooth_max_test()
+    
+    

@@ -11,7 +11,7 @@ from torch.nn import Parameter, Linear
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
 from torch_geometric.utils import softmax
-
+from torch_sparse import transpose
 from linalg import batched_spmm, batched_transpose
 from utils import self_loop_augment
 
@@ -121,6 +121,7 @@ class EncoderLayer(nn.Module, ABC):
         #                                                                self.cls_path_weights))
         xv_pos, xc_pos = self.cross_attention_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.cross_attention_neg((xv, xc), adj_neg)
+
         return xv_pos + xv_neg, xc_pos + xc_neg  # TODO is xv_pos + xv_neg appropriate?
 
 
@@ -244,7 +245,7 @@ class HGAConv(MessagePassing):
         h, c = self.heads, self.out_channels
         # assert (not isinstance(adj, Tensor)) and h == len(adj), 'Number of heads is number of adjacency matrices'
 
-        x_l, x_r, alpha_l, alpha_r = None, None, None, None
+        x_l, x_r, alpha_l, alpha_r, alpha_l_, alpha_r_ = None, None, None, None, None, None
 
         if isinstance(x, Tensor):
             x_l, x_r = x, None
@@ -256,6 +257,9 @@ class HGAConv(MessagePassing):
         if x_r is not None:
             x_r = self.lin_r(x_r)
             alpha_r = torch.mm(x_r, self.att_r)
+            alpha_r_ = torch.mm(x_l, self.att_r)
+            alpha_l_ = torch.mm(x_r, self.att_l)
+            self.add_self_loops = False
         else:
             alpha_r = torch.mm(x_l, self.att_r)
         assert x_l is not None
@@ -274,9 +278,11 @@ class HGAConv(MessagePassing):
         # propagate_type: (x: OptPairTensor, alpha: OptPairTensor)
         xpar = (x_l, x_r) if x_r is not None else x_l
         alphapar = (alpha_l, alpha_r)
+        alpha_  = (alpha_l_, alpha_r_)
         out = self.propagate(adj,
                              x = xpar,
                              alpha = alphapar,
+                             alpha_ = alpha_,
                              size=size)
 
         alpha = self._alpha
@@ -311,7 +317,11 @@ class HGAConv(MessagePassing):
         x = kwargs.get('x', Pr.empty)  # OptPairTensor
         alpha = kwargs.get('alpha', Pr.empty)  # PairTensor
         score = self.edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1], is_cross=isinstance(x, Tensor))
-
+        if not isinstance(x, Tensor):
+            alpha_ = kwargs.get('alpha_', Pr.empty)
+            score_ = self.edge_score(adj=adj, a_l=alpha_[1], a_r=alpha_[0], is_cross=isinstance(x, Tensor))
+            score = (score, score_)
+        
         out = self.message_and_aggregate(adj, x=x, score=score)
 
         return self.update(out)
@@ -345,7 +355,12 @@ class HGAConv(MessagePassing):
             out_l = torch.zeros((m, c2, self.heads))
 
         if isinstance(adj, Tensor):
-            alpha = self._attention(adj, score)  # [num_edges, heads]
+            if isinstance(score, Tensor):
+                alpha = self._attention(adj, score)  # [num_edges, heads]
+            else:
+                alpha = self._attention(adj, score[0])  # [num_edges, heads]
+                alpha_ = self._attention(torch.stack((adj[1], adj[0])), score[1])  # [num_edges, heads]
+
         else:  # adj is list of Tensor
             alpha = []
             for i in range(self.heads):
@@ -355,8 +370,8 @@ class HGAConv(MessagePassing):
         if x_r is None:
             return out_.permute(1, 0, 2)
         else:
-            adj, alpha = batched_transpose(adj, alpha)
-            out_l = batched_spmm(alpha, adj, x_r, n, m)
+            adj, alpha_ = batched_transpose(adj, alpha_)
+            out_l = batched_spmm(alpha_, adj, x_r, n, m)
             return out_l.permute(1, 0, 2), out_.permute(1, 0, 2)
 
     def __repr__(self):
