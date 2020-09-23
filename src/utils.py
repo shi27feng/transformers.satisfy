@@ -105,13 +105,16 @@ def draw_graph_list(graphs, row, col, filename='figures/test', layout='spring', 
     plt.close()
 
 
-def make_checkpoint(path, epoch, model, optimizer, loss):
+def make_checkpoint(root, name, epoch, model, optimizer, loss):
+    if not osp.exists(root):
+        import os
+        os.mkdir(root)
     torch.save({
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'loss': loss,
-    }, path)
+    }, osp.join(root, name))
 
 
 def load_checkpoint(path, model, optimizer):

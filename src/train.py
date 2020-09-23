@@ -73,12 +73,13 @@ def main():
     # criterion = LabelSmoothing(V, padding_idx=dataset.pad_id, smoothing=0.1)
     # make_model black box
     model = make_model(args).to(device)
-    opt = get_std_opt(model, args)
+    noam_opt = get_std_opt(model, args)
     last_epoch = 0
     if args.load_model:
-        last_epoch, loss = load_checkpoint(args.save_root, model, opt)
+        import os.path as osp
+        last_epoch, loss = load_checkpoint(osp.join(args.save_root, args.save_name), model, noam_opt)
 
-    loss_compute = SimpleLossCompute2(args.p, args.a, opt)
+    loss_compute = SimpleLossCompute2(args.p, args.a, noam_opt)
 
     for epoch in range(last_epoch, args.epoch_num):
         # print('Epoch: {} Training...'.format(epoch))
@@ -88,7 +89,7 @@ def main():
         print('Epoch: {} Evaluating...'.format(epoch))
         # TODO Save model
         if epoch % args.epoch_save == 0:
-            make_checkpoint(args.save_root, epoch, model, opt, total_loss)
+            make_checkpoint(args.save_root, args.save_name, epoch, model, noam_opt.optimizer, total_loss)
 
         # Validation
         model.eval()
