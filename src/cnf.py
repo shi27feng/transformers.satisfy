@@ -98,7 +98,8 @@ class CNFParser:
                 break
 
     def to_bipartite(self, var_dim=1, cls_dim=1):
-        xv = torch.empty(self.num_variables, var_dim).uniform_()
+        # xv = torch.empty(self.num_variables, var_dim).uniform_()
+        xv = torch.ones(size=(self.num_variables, var_dim))
         xc = torch.ones(size=(self.num_clauses, cls_dim))
         pos_adj = torch.tensor(self.edge_index_pos)
         neg_adj = torch.tensor(self.edge_index_neg)

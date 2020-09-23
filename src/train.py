@@ -40,7 +40,7 @@ def run_epoch(data_loader,
         with torch.set_grad_enabled(is_train):
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
             xv = model(batch.xv, batch.xc, adj_pos, adj_neg)
-            loss = loss_compute(xv, adj_pos, adj_neg)
+            loss = loss_compute(xv, adj_pos, adj_neg, is_train)
             total_loss += loss
     elapsed = time.time() - start
     num_items = len(data_loader)
@@ -79,7 +79,7 @@ def main():
         import os.path as osp
         last_epoch, loss = load_checkpoint(osp.join(args.save_root, args.save_name), model, noam_opt)
 
-    loss_compute = SimpleLossCompute2(args.p, args.a, noam_opt)
+    loss_compute = SimpleLossCompute2(args.sm_par, args.sig_par, noam_opt)
 
     for epoch in range(last_epoch, args.epoch_num):
         # print('Epoch: {} Training...'.format(epoch))

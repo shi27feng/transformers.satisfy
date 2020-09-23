@@ -78,7 +78,7 @@ class SimpleLossCompute2(nn.Module, ABC):
         self.debug = debug
 
     # def forward(self, xv, adj_pos, adj_neg):
-    def __call__(self, xv, adj_pos, adj_neg):
+    def __call__(self, xv, adj_pos, adj_neg, is_train):
         """
         Args:
             xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
@@ -99,7 +99,7 @@ class SimpleLossCompute2(nn.Module, ABC):
         log_smooth = torch.log(sm)
         _loss = -torch.sum(log_smooth)
 
-        if self.opt is not None:
+        if self.opt is not None and is_train:
             self.opt.optimizer.zero_grad()
             _loss.backward()
             self.opt.step()
