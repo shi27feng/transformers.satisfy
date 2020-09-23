@@ -176,7 +176,7 @@ class HGAConv(MessagePassing):
                  negative_slope: float = 0.2,
                  dropout: float = 0.,
                  use_self_loops: bool = False,  # Set to False for debug
-                 bias: bool = True, **kwargs):
+                 bias: bool = False, **kwargs):
         super(HGAConv, self).__init__(aggr='add', node_dim=0, **kwargs)
 
         self.heads = heads
@@ -395,31 +395,30 @@ if __name__ == "__main__":
     valid_ds = ds[last_trn: last_val]
     test_ds = ds[last_val:]
     from loss import SimpleLossCompute2
-
     model = models.make_model(args)
-
-    loader = DataLoader(ds, batch_size=8)
-    test_data = next(iter(loader))
-    edge_index_pos = test_data.edge_index_pos
-    edge_index_neg = test_data.edge_index_neg
-    num_clause = max(max(edge_index_pos[0]), max(edge_index_neg[0])) + 1
-    num_variable = max(max(edge_index_pos[1]), max(edge_index_neg[1])) + 1
-    edge_count = len(edge_index_pos[1])
     from optimizer import get_std_opt
-
-    opt = get_std_opt(model, args)
-
-    print(f"edge_index_pos[0]: {max(edge_index_pos[0])}")
-    print(f"edge_index_neg[0]: {max(edge_index_neg[0])}")
-    print(num_clause)
-    print(num_variable)
-    print()
-    xv = test_data.xv
-    xc = test_data.xc
-    literal_assignment = model(xv, xc, edge_index_pos, edge_index_neg)
+    opt = get_std_opt(model, args)  
+    loader = DataLoader(ds[0:4*64], batch_size=64)
     loss_func = SimpleLossCompute2(30, 100, opt)
-    print(literal_assignment.shape)
-    loss_of_this_assignment = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
-    print(loss_of_this_assignment)
-    # print(f"loss_of_this_assignent: {loss_of_this_assignent}")
-    # print("End of program")
+
+    for test_data in loader:
+        model.encoder.reset()
+        edge_index_pos = test_data.edge_index_pos
+        edge_index_neg = test_data.edge_index_neg
+        xv = test_data.xv
+        xc = test_data.xc
+        literal_assignment = model(xv, xc, edge_index_pos, edge_index_neg)
+
+        print(literal_assignment.shape)
+        loss_of_this_assignment = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
+        print(loss_of_this_assignment)
+        print()
+        '''
+        for name, param in model.named_parameters():
+            if param.grad is not None:
+                print(name, param.grad.sum())
+            else:
+                print(name, param.grad)
+        '''
+        # print(f"loss_of_this_assignent: {loss_of_this_assignent}")
+        # print("End of program")
