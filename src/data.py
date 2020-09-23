@@ -46,6 +46,8 @@ class SATDataset(InMemoryDataset, ABC):
         self.name = name
         self.use_negative = use_negative
         assert self.name.split('/')[0] in self.datasets.keys()
+        if not osp.exists(osp.joint(name[1], "raw")):
+            os.mkdir(osp.joint(name[1], "raw"))
         super(SATDataset, self).__init__(root, transform, pre_transform)
         path = osp.join(self.processed_dir, self.processed_file_names)
         self.data, self.sat = torch.load(path)
