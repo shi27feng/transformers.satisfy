@@ -157,7 +157,7 @@ class DecoderLayer(nn.Module, ABC):
         xv_pos, xc_pos = self.attn_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.attn_neg((xv, xc), adj_neg)
         return self.sublayer[0](xv_pos + xv_neg, self.ff_v), \
-            self.sublayer[1](xc_pos + xc_neg, self.ff_c)
+               self.sublayer[1](xc_pos + xc_neg, self.ff_c)
 
 
 class HGAConv(MessagePassing):
@@ -175,7 +175,7 @@ class HGAConv(MessagePassing):
                  concat: bool = False,
                  negative_slope: float = 0.2,
                  dropout: float = 0.,
-                 use_self_loops: bool = False,   # Set to False for debug
+                 use_self_loops: bool = False,  # Set to False for debug
                  bias: bool = True, **kwargs):
         super(HGAConv, self).__init__(aggr='add', node_dim=0, **kwargs)
 
@@ -379,21 +379,24 @@ class HGAConv(MessagePassing):
                                              self.in_channels,
                                              self.out_channels, self.heads)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     import models
     from args import make_args
     from torch_geometric.data import DataLoader
+
     args = make_args()
 
     from data import SATDataset
+
     ds = SATDataset('dataset', 'RND3SAT/uf50-218', False)
     last_trn, last_val = int(len(ds)), int(len(ds))
     train_ds = ds[: last_trn]
     valid_ds = ds[last_trn: last_val]
     test_ds = ds[last_val:]
     from loss import SimpleLossCompute2
-    model = models.make_model(args)
 
+    model = models.make_model(args)
 
     loader = DataLoader(ds, batch_size=8)
     test_data = next(iter(loader))
@@ -403,6 +406,7 @@ if __name__=="__main__":
     num_variable = max(max(edge_index_pos[1]), max(edge_index_neg[1])) + 1
     edge_count = len(edge_index_pos[1])
     from optimizer import get_std_opt
+
     opt = get_std_opt(model, args)
 
     print(f"edge_index_pos[0]: {max(edge_index_pos[0])}")
@@ -415,8 +419,7 @@ if __name__=="__main__":
     literal_assignment = model(xv, xc, edge_index_pos, edge_index_neg)
     loss_func = SimpleLossCompute2(30, 100, opt)
     print(literal_assignment.shape)
-    loss_of_this_assignent = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
-    print(loss_of_this_assignent)
-    #print(f"loss_of_this_assignent: {loss_of_this_assignent}")
-    #print("End of program")
-   
+    loss_of_this_assignment = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
+    print(loss_of_this_assignment)
+    # print(f"loss_of_this_assignent: {loss_of_this_assignent}")
+    # print("End of program")
