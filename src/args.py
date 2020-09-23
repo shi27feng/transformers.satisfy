@@ -27,7 +27,7 @@ def make_args():
                         help='whether speedup')
     parser.add_argument('--load_model', dest='load_model', default=False, type=bool,
                         help='whether load_model')
-    parser.add_argument('--batch_size', dest='batch_size', default=1,
+    parser.add_argument('--batch_size', dest='batch_size', default=100,
                         type=int)  # implemented via accumulating gradient
     parser.add_argument('--num_layers', dest='num_layers', default=2, type=int)
     parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=2, type=int)
@@ -48,6 +48,7 @@ def make_args():
     parser.add_argument('--epoch_log', dest='epoch_log', default=50, type=int)  # test every
     parser.add_argument('--epoch_save', dest='epoch_save', default=50, type=int)  # save every
     parser.add_argument('--save_root', dest='save_root', default='saved_model', type=str)
+    parser.add_argument('--save_name', dest='save_name', default='check_point', type=str)
 
     parser.set_defaults(gpu=True, dataset='RND3SAT/uf50-218', load_model=False)
     args = parser.parse_args()
