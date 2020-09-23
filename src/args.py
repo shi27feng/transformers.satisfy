@@ -6,7 +6,7 @@ def make_args():
     # general
     parser.add_argument('--dataset', dest='dataset', default='RND3SAT/uf50-218',
                         type=str, help='RND3SAT DIMACS')
-    parser.add_argument('--dataset_root', dest='root', default='../dataset',
+    parser.add_argument('--dataset_root', dest='root', default='dataset',
                         type=str, help='RND3SAT DIMACS')
     parser.add_argument('--loss', dest='loss', default='l2', type=str,
                         help='l2; cross_entropy')
@@ -27,7 +27,7 @@ def make_args():
                         help='whether speedup')
     parser.add_argument('--load_model', dest='load_model', default=False, type=bool,
                         help='whether load_model')
-    parser.add_argument('--batch_size', dest='batch_size', default=1,
+    parser.add_argument('--batch_size', dest='batch_size', default=64,
                         type=int)  # implemented via accumulating gradient
     parser.add_argument('--num_layers', dest='num_layers', default=2, type=int)
     parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=2, type=int)

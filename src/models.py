@@ -38,6 +38,9 @@ class Encoder(nn.Module, ABC):
         ])
         self.norm = LayerNorm(channels[-1])
 
+    def reset(self):
+        self.cached_adj = None
+
     def forward(self, xv, xc, adj_pos, adj_neg):
         """
         meta paths are only calculated once

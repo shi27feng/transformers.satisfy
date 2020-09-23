@@ -36,6 +36,7 @@ def run_epoch(data_loader,
                          total=len(data_loader),
                          desc=desc):
         batch = batch.to(device)
+        model.encoder.reset()
         with torch.set_grad_enabled(is_train):
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
             xv = model(batch.xv, batch.xc, adj_pos, adj_neg)
