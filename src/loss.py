@@ -66,12 +66,21 @@ class LossCompute(nn.Module, ABC):
 
         return _loss
 
-def log_loss(sm, clause_count):
-    log_smooth = torch.log(sm + 0.05)
-    return -torch.sum(log_smooth)
+class LossMetric():
+    @staticmethod
+    def log_loss(sm, clause_count):
+        log_smooth = torch.log(sm + 0.05)
+        return -torch.sum(log_smooth)
+    @staticmethod
+    def linear_loss(sm, clause_count):
+        return mse_loss(sm, (torch.ones(clause_count) + 0.1).to(sm.device))
+    @staticmethod
+    def square_loss(sm, clause_count):
+        return (1 - sm).square().sum()
 
-def linear_loss(sm, clause_count):
-    return mse_loss(sm, (torch.ones(clause_count) + 0.1).to(sm.device))
+
+
+
 
 def literal(xi, e):
     return (1 - e) / 2 + e * xi

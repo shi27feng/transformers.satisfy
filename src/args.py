@@ -45,7 +45,7 @@ def make_args():
     parser.add_argument('--sig_par', dest='sig_par', default=30, type=float)
     parser.add_argument('--warmup_steps', dest='warmup_steps', default=200, type=float)
     parser.add_argument('--opt_train_factor', dest='opt_train_factor', default=4, type=float)
-    parser.add_argument('--epoch_num', dest='epoch_num', default=201, type=int)   # paper used: 2001
+    parser.add_argument('--epoch_num', dest='epoch_num', default=1001, type=int)   # paper used: 2001
     parser.add_argument('--epoch_log', dest='epoch_log', default=50, type=int)  # test every
     parser.add_argument('--epoch_save', dest='epoch_save', default=50, type=int)  # save every
     parser.add_argument('--save_root', dest='save_root', default='saved_model', type=str)

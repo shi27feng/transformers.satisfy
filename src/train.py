@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 from args import make_args
 from data import SATDataset
-from loss import LossCompute, log_loss, linear_loss
+from loss import LossCompute, LossMetric
 from models import make_model
 from optimizer import get_std_opt
 from torch_geometric.data import DataLoader
@@ -30,7 +30,7 @@ def run_epoch(data_loader,
         is_train: bool
         desc: str
     """
-    torch.autograd.set_detect_anomaly(True)
+    # torch.autograd.set_detect_anomaly(True)
     total_loss = 0
     start = time.time()
     for i, batch in tqdm(enumerate(data_loader),
@@ -49,6 +49,8 @@ def run_epoch(data_loader,
     return total_loss
     # TODO accuracy
     # print('accuracy: {}'.format(loss_compute.accuracy))
+
+
 
 
 def main():
@@ -80,7 +82,8 @@ def main():
         import os.path as osp
         last_epoch, loss = load_checkpoint(osp.join(args.save_root, args.save_name), model, noam_opt)
 
-    loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, linear_loss)
+    loss_metric = LossMetric()
+    loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.square_loss)
 
     for epoch in range(last_epoch, args.epoch_num):
         # print('Epoch: {} Training...'.format(epoch))
