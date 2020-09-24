@@ -156,7 +156,7 @@ class CNFParser:
     def to_bipartite(self, var_dim=1, cls_dim=1):
         # xv = torch.empty(self.num_variables, var_dim).uniform_()
         xv = torch.ones(size=(self.num_variables, var_dim))
-        xc = torch.ones(size=(self.num_clauses, cls_dim))
+        xc = torch.ones(size=(self.num_clauses, cls_dim)) * 0.5
         pos_adj = torch.tensor(self.edge_index_pos)
         neg_adj = torch.tensor(self.edge_index_neg)
         return BipartiteData(pos_adj, neg_adj, xv, xc)
