@@ -12,7 +12,7 @@ class AccuracyCompute(nn.Module):  # TODO add batch
 
     def __call__(self, xv, adj_pos, adj_neg, batch_size=1):
         xv = xv.view(-1)
-        xv = xv // 0.5
+        xv = xv // 0.50001
         xp = xv[adj_pos[1]]
         xn = (1 - xv)[adj_neg[1]]
         x = torch.cat((xp, xn))
@@ -53,7 +53,6 @@ class LossCompute(nn.Module, ABC):
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
         sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
-        sm = sm + 0.05
         _loss = self.metric(sm, clause_count)
 
         if self.opt is not None and is_train:
@@ -68,7 +67,7 @@ class LossCompute(nn.Module, ABC):
         return _loss
 
 def log_loss(sm, clause_count):
-    log_smooth = torch.log(sm)
+    log_smooth = torch.log(sm + 0.05)
     return -torch.sum(log_smooth)
 
 def linear_loss(sm, clause_count):
