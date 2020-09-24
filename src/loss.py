@@ -113,16 +113,15 @@ class LogLossCompute2(nn.Module, ABC):
         return _loss
 
 class LinearLossCompute(nn.Module, ABC):
-    def __init__(self, p, a, clause_count, opt=None, debug=False):
+    def __init__(self, p, a, opt=None, debug=False):
         super(LinearLossCompute, self).__init__()
         self.p = p
         self.a = a
-        self.clause_count = clause_count
         self.opt = opt
         self.debug = debug
 
     # def forward(self, xv, adj_pos, adj_neg):
-    def __call__(self, xv, adj_pos, adj_neg, is_train):
+    def __call__(self, xv, adj_pos, adj_neg, clause_count, is_train):
         """
         Args:
             xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
@@ -139,7 +138,7 @@ class LinearLossCompute(nn.Module, ABC):
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
         sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
-        _loss = mse_loss(sm, torch.ones(self.clause_count))
+        _loss = mse_loss(sm, torch.ones(clause_count).to(sm.device))
         print("SAT rate", torch.div(torch.sum((sm-0.05) // 0.5), len(sm)))
     
         if self.opt is not None and is_train:

@@ -98,7 +98,7 @@ class EncoderLayer(nn.Module, ABC):
     @staticmethod
     def _attention_meta_path(x, meta_paths, att_layers, sublayers, path_weights):
         assert len(att_layers) == len(meta_paths), "the length should match"
-        res = torch.zeros(x.shape)
+        res = torch.zeros(x.shape).to(x.device)
         # TODO try to use batched matrix for meta-paths
         #   e.g. concatenate adj of meta-path as one diagonalized matrix, and stack x
         for i in range(len(att_layers)):  # they are not sequential, but in reduction mode

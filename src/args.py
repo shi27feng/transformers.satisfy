@@ -10,7 +10,7 @@ def make_args():
                         type=str, help='RND3SAT DIMACS')
     parser.add_argument('--loss', dest='loss', default='l2', type=str,
                         help='l2; cross_entropy')
-    parser.add_argument('--gpu', dest='use_gpu', action='store_true',
+    parser.add_argument('--gpu', dest='use_gpu', default=True, type=bool,
                         help='whether use gpu')
     parser.add_argument('--cuda', dest='cuda', default='0', type=str)
 

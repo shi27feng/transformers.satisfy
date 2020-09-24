@@ -24,6 +24,16 @@ class BipartiteData(Data):
         self.edge_index_cls_nn = None
 
         self._meta_paths_(pos_adj, neg_adj)
+
+        self.edge_index_lit_pp = self.edge_index_lit_pp.to("cpu")
+        self.edge_index_lit_pn = self.edge_index_lit_pn.to("cpu")
+        self.edge_index_lit_np = self.edge_index_lit_np.to("cpu")
+        self.edge_index_lit_nn = self.edge_index_lit_nn.to("cpu")
+        self.edge_index_cls_pp = self.edge_index_cls_pp.to("cpu")
+        self.edge_index_cls_pn = self.edge_index_cls_pn.to("cpu")
+        self.edge_index_cls_np = self.edge_index_cls_np.to("cpu")
+        self.edge_index_cls_nn = self.edge_index_cls_nn.to("cpu")
+
     
     @staticmethod
     def _cross_product(adj_p, adj_p_t, adj_n, adj_n_t, val_p, val_n, m, n):
