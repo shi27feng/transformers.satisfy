@@ -114,7 +114,7 @@ def make_checkpoint(root, name, epoch, model, optimizer, loss):
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'loss': loss,
-    }, osp.join(root, name + ".pickle"))
+    }, osp.join(root, name + '_' + str(epoch) + ".pickle"))
 
 
 def load_checkpoint(path, model, optimizer):

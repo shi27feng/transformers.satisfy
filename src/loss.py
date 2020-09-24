@@ -26,99 +26,14 @@ class LabelSmoothing(nn.Module, ABC):
     def __init__(self):
         super(LabelSmoothing, self).__init__()
 
-
-class SimpleLossCompute(nn.Module, ABC):
-    def __init__(self, p, a, opt=None, debug=False):
-        super(SimpleLossCompute, self).__init__()
+class LossCompute(nn.Module, ABC):
+    def __init__(self, p, a, opt=None, metric=None, debug=False):
+        super(LossCompute, self).__init__()
         self.p = p
         self.a = a
         self.opt = opt
         self.debug = debug
-
-    # def forward(self, xv, adj_pos, adj_neg):
-    def __call__(self, xv, adj_pos, adj_neg):
-        """
-        Args:
-            xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
-            adj_pos: Tensor
-            adj_neg: Tensor
-        Desc:
-            adj[0] is an array of clause indices, adj[1] is an array of variables
-        """
-        xv = xv.view(-1)
-        xp = xv[adj_pos[1]]
-        xn = negation(xv[adj_neg[1]])
-        x = torch.cat((xp, xn))
-        xe = torch.exp(self.p * x)  # exp(x*p)
-        numerator = torch.mul(x, xe)  # x*exp(x*p)
-        adj = torch.cat((adj_pos, adj_neg), 1)
-        idx = adj[0]
-        numerator = scatter(numerator, idx, reduce="sum")
-        dominator = scatter(xe, idx, reduce="sum")
-        sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
-        log_smooth = torch.log(sm)
-        _loss = -torch.sum(log_smooth)
-
-        if self.opt is not None:
-            _loss.backward()
-            self.opt.step()
-            self.opt.optimizer.zero_grad()
-
-        if self.debug:
-            return _loss, sm
-
-        return _loss
-
-
-class LogLossCompute2(nn.Module, ABC):
-    def __init__(self, p, a, opt=None, debug=False):
-        super(LogLossCompute2, self).__init__()
-        self.p = p
-        self.a = a
-        self.opt = opt
-        self.debug = debug
-
-    # def forward(self, xv, adj_pos, adj_neg):
-    def __call__(self, xv, adj_pos, adj_neg, is_train):
-        """
-        Args:
-            xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
-            adj_pos: Tensor
-            adj_neg: Tensor
-        Desc:
-            adj[0] is an array of clause indices, adj[1] is an array of variables
-        """
-        xv = xv.view(-1)
-        xn = negation(xv)
-        xe = torch.cat((torch.exp(self.p * xv)[adj_pos[1]], torch.exp(self.p * xn)[adj_neg[1]]))  # exp(x*p)
-        numerator = torch.mul(torch.cat((xv[adj_pos[1]],xn[adj_neg[1]])), xe)  # x*exp(x*p)
-        idx = torch.cat((adj_pos[0], adj_neg[0]))
-        numerator = scatter(numerator, idx, reduce="sum")
-        dominator = scatter(xe, idx, reduce="sum")
-        sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
-        sm = sm + 0.05
-        log_smooth = torch.log(sm)
-        _loss = -torch.sum(log_smooth)
-        print("SAT rate", torch.div(torch.sum((sm-0.05) // 0.5), len(sm)))
-    
-        if self.opt is not None and is_train:
-            self.opt.optimizer.zero_grad()
-            _loss.backward()
-            self.opt.step()
-            
-
-        if self.debug:
-            return _loss, sm
-
-        return _loss
-
-class LinearLossCompute(nn.Module, ABC):
-    def __init__(self, p, a, opt=None, debug=False):
-        super(LinearLossCompute, self).__init__()
-        self.p = p
-        self.a = a
-        self.opt = opt
-        self.debug = debug
+        self.metric = metric
 
     # def forward(self, xv, adj_pos, adj_neg):
     def __call__(self, xv, adj_pos, adj_neg, clause_count, is_train):
@@ -138,9 +53,9 @@ class LinearLossCompute(nn.Module, ABC):
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
         sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
-        _loss = mse_loss(sm, torch.ones(clause_count).to(sm.device))
-        print("SAT rate", torch.div(torch.sum((sm-0.05) // 0.5), len(sm)))
-    
+        sm = sm + 0.05
+        _loss = self.metric(sm, clause_count)
+
         if self.opt is not None and is_train:
             self.opt.optimizer.zero_grad()
             _loss.backward()
@@ -152,7 +67,12 @@ class LinearLossCompute(nn.Module, ABC):
 
         return _loss
 
+def log_loss(sm, clause_count):
+    log_smooth = torch.log(sm)
+    return -torch.sum(log_smooth)
 
+def linear_loss(sm, clause_count):
+    return mse_loss(sm, (torch.ones(clause_count) + 0.1).to(sm.device))
 
 def literal(xi, e):
     return (1 - e) / 2 + e * xi

@@ -39,7 +39,8 @@ def make_args():
     parser.add_argument('--cross_att_heads', dest='cross_att_heads', default=8, type=int)
 
     # Training Setting up
-    parser.add_argument('--lr', dest='lr', default=1e-6, type=float)
+    parser.add_argument('--lr', dest='lr', default=1e-7, type=float)
+    parser.add_argument('--weight_decay', dest='weight_decay',default=0.01, type=float)
     parser.add_argument('--sm_par', dest='sm_par', default=5, type=float)
     parser.add_argument('--sig_par', dest='sig_par', default=30, type=float)
     parser.add_argument('--warmup_steps', dest='warmup_steps', default=200, type=float)

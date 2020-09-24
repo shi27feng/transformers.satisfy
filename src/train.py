@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 from args import make_args
 from data import SATDataset
-from loss import LogLossCompute2, LinearLossCompute
+from loss import LossCompute, log_loss, linear_loss
 from models import make_model
 from optimizer import get_std_opt
 from torch_geometric.data import DataLoader
@@ -80,7 +80,7 @@ def main():
         import os.path as osp
         last_epoch, loss = load_checkpoint(osp.join(args.save_root, args.save_name), model, noam_opt)
 
-    loss_compute = LinearLossCompute(args.sm_par, args.sig_par, noam_opt)
+    loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, linear_loss)
 
     for epoch in range(last_epoch, args.epoch_num):
         # print('Epoch: {} Training...'.format(epoch))
