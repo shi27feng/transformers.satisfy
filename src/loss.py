@@ -4,6 +4,7 @@ import time
 import torch
 import torch.nn as nn
 from torch_scatter import scatter
+from torch.nn.functional import mse_loss
 
 class AccuracyCompute(nn.Module):  # TODO add batch
     def __init__(self):
@@ -69,9 +70,9 @@ class SimpleLossCompute(nn.Module, ABC):
         return _loss
 
 
-class SimpleLossCompute2(nn.Module, ABC):
+class LogLossCompute2(nn.Module, ABC):
     def __init__(self, p, a, opt=None, debug=False):
-        super(SimpleLossCompute2, self).__init__()
+        super(LogLossCompute2, self).__init__()
         self.p = p
         self.a = a
         self.opt = opt
@@ -110,6 +111,48 @@ class SimpleLossCompute2(nn.Module, ABC):
             return _loss, sm
 
         return _loss
+
+class LinearLossCompute(nn.Module, ABC):
+    def __init__(self, p, a, clause_count, opt=None, debug=False):
+        super(LinearLossCompute, self).__init__()
+        self.p = p
+        self.a = a
+        self.clause_count = clause_count
+        self.opt = opt
+        self.debug = debug
+
+    # def forward(self, xv, adj_pos, adj_neg):
+    def __call__(self, xv, adj_pos, adj_neg, is_train):
+        """
+        Args:
+            xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
+            adj_pos: Tensor
+            adj_neg: Tensor
+        Desc:
+            adj[0] is an array of clause indices, adj[1] is an array of variables
+        """
+        xv = xv.view(-1)
+        xn = negation(xv)
+        xe = torch.cat((torch.exp(self.p * xv)[adj_pos[1]], torch.exp(self.p * xn)[adj_neg[1]]))  # exp(x*p)
+        numerator = torch.mul(torch.cat((xv[adj_pos[1]],xn[adj_neg[1]])), xe)  # x*exp(x*p)
+        idx = torch.cat((adj_pos[0], adj_neg[0]))
+        numerator = scatter(numerator, idx, reduce="sum")
+        dominator = scatter(xe, idx, reduce="sum")
+        sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
+        _loss = mse_loss(sm, torch.ones(self.clause_count))
+        print("SAT rate", torch.div(torch.sum((sm-0.05) // 0.5), len(sm)))
+    
+        if self.opt is not None and is_train:
+            self.opt.optimizer.zero_grad()
+            _loss.backward()
+            self.opt.step()
+            
+
+        if self.debug:
+            return _loss, sm
+
+        return _loss
+
 
 
 def literal(xi, e):

@@ -177,7 +177,7 @@ class HGAConv(MessagePassing):
                  negative_slope: float = 0.2,
                  dropout: float = 0.,
                  use_self_loops: bool = False,  # Set to False for debug
-                 bias: bool = False, **kwargs):
+                 bias: bool = True, **kwargs):
         super(HGAConv, self).__init__(aggr='add', node_dim=0, **kwargs)
 
         self.heads = heads
