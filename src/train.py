@@ -30,16 +30,17 @@ def run_epoch(data_loader,
         is_train: bool
         desc: str
     """
+    torch.autograd.set_detect_anomaly(True)
     total_loss = 0
     start = time.time()
     for i, batch in tqdm(enumerate(data_loader),
                          total=len(data_loader),
                          desc=desc):
         batch = batch.to(device)
-        model.encoder.reset()
+        # model.encoder.reset()
         with torch.set_grad_enabled(is_train):
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
-            xv = model(batch.xv, batch.xc, adj_pos, adj_neg)
+            xv = model(batch)
             loss = loss_compute(xv, adj_pos, adj_neg, is_train)
             total_loss += loss
     elapsed = time.time() - start

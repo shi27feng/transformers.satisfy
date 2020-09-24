@@ -98,7 +98,8 @@ class SimpleLossCompute2(nn.Module, ABC):
         sm = sm + 0.05
         log_smooth = torch.log(sm)
         _loss = -torch.sum(log_smooth)
-
+        print("SAT rate", torch.div(torch.sum((sm-0.05) // 0.5), len(sm)))
+    
         if self.opt is not None and is_train:
             self.opt.optimizer.zero_grad()
             _loss.backward()

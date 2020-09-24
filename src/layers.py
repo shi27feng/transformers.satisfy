@@ -21,7 +21,7 @@ def clones(module, k):
         copy.deepcopy(module) for i in range(k)
     )
 
-
+'''
 class LayerNorm(nn.Module, ABC):
     """Construct a layer-norm module (See citation for details)."""
 
@@ -34,8 +34,9 @@ class LayerNorm(nn.Module, ABC):
     def forward(self, x):
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
+        print()
         return self.alpha * (x - mean) / (std + self.eps) + self.beta
-
+'''
 
 class SublayerConnection(nn.Module, ABC):
     """
@@ -45,7 +46,7 @@ class SublayerConnection(nn.Module, ABC):
 
     def __init__(self, in_channels, drop_rate):
         super(SublayerConnection, self).__init__()
-        self.norm = LayerNorm(in_channels)
+        self.norm = nn.LayerNorm(in_channels)
         self.dropout = nn.Dropout(drop_rate)
 
     def forward(self, x, sublayer):
@@ -101,7 +102,7 @@ class EncoderLayer(nn.Module, ABC):
         # TODO try to use batched matrix for meta-paths
         #   e.g. concatenate adj of meta-path as one diagonalized matrix, and stack x
         for i in range(len(att_layers)):  # they are not sequential, but in reduction mode
-            res += path_weights[i] * sublayers[i](x, att_layers[i](x, meta_paths[i][0]))  # TODO 
+            res += path_weights[i] * sublayers[i](x, att_layers[i](x, meta_paths[i]))  # TODO 
         return res
 
     def forward(self, xv, xc, meta_paths_lit, meta_paths_cls, adj_pos, adj_neg):

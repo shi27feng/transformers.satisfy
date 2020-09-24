@@ -4,7 +4,7 @@ from abc import ABC
 import torch
 import torch.nn as nn
 from torch.nn.functional import softmax
-from layers import clones, LayerNorm, SublayerConnection, EncoderLayer, DecoderLayer
+from layers import clones, SublayerConnection, EncoderLayer, DecoderLayer
 from torch_sparse import spspmm, transpose
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 
@@ -36,57 +36,31 @@ class Encoder(nn.Module, ABC):
                          args.cross_att_heads,
                          args.drop_rate) for i in range(args.num_encoder_layers)
         ])
-        self.norm = LayerNorm(channels[-1])
+        self.norm = nn.LayerNorm(channels[-1])
 
     def reset(self):
         self.cached_adj = None
 
-    def forward(self, xv, xc, adj_pos, adj_neg):
+    def forward(self, xv, xc, graph):
         """
         meta paths are only calculated once
         """
-        if self.cached_adj is None:
-            self.cached_adj = [adj_pos, adj_neg]
-            self._meta_paths_(adj_pos, adj_neg, device=self.device)
 
-        meta_paths_lit = [self.cached_lit_pos_pos,   # $$A \times A^T$$
-                          self.cached_lit_pos_neg,
-                          self.cached_lit_neg_pos,
-                          self.cached_lit_neg_neg]
-        meta_paths_cls = [self.cached_cls_pos_pos,   # $$A^T \times A$$
-                          self.cached_cls_pos_neg,
-                          self.cached_cls_neg_pos,
-                          self.cached_cls_neg_neg]
+        meta_paths_lit = [graph.edge_index_lit_pp,   # $$A \times A^T$$
+                          graph.edge_index_lit_pn,
+                          graph.edge_index_lit_np,
+                          graph.edge_index_lit_nn]
+        meta_paths_cls = [graph.edge_index_cls_pp,   # $$A^T \times A$$
+                          graph.edge_index_cls_pn,
+                          graph.edge_index_cls_np,
+                          graph.edge_index_cls_nn]
         for layer in self.layers:
             xv, xc = layer(xv, xc,
                            meta_paths_lit, meta_paths_cls,
-                           adj_pos, adj_neg)
+                           graph.edge_index_pos, graph.edge_index_neg)
         return self.norm(xv), self.norm(xc)
 
-    def _meta_paths_(self, adj_pos, adj_neg, device):
-        # if self.cached_adj is not None:
-        #     adj_pos, adj_neg = self.cached_adj
-        val_pos = torch.ones(adj_pos.size(1), device=self.device)
-        val_neg = torch.ones(adj_neg.size(1), device=self.device)
-        m = max(maybe_num_nodes(adj_pos[0]), maybe_num_nodes(adj_neg[0]))
-        n = max(maybe_num_nodes(adj_pos[1]), maybe_num_nodes(adj_neg[1]))
-        # print("edge pos: {}; edge neg: {}; m: {}; n: {}".format(adj_pos.size(1), adj_neg.size(1), m, n))
-        adj_pos_t, _ = transpose(adj_pos, val_pos, m, n)
-        adj_neg_t, _ = transpose(adj_neg, val_neg, m, n)
 
-        self.cached_cls_pos_pos, self.cached_cls_pos_neg, self.cached_cls_neg_pos, self.cached_cls_neg_neg = \
-            self._cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n)
-
-        self.cached_lit_pos_pos, self.cached_lit_pos_neg, self.cached_lit_neg_pos, self.cached_lit_neg_neg = \
-            self._cross_product(adj_pos_t, adj_pos, adj_neg_t, adj_neg, val_pos, val_neg, n, m)
-
-    @staticmethod
-    def _cross_product(adj_p, adj_p_t, adj_n, adj_n_t, val_p, val_n, m, n):
-        # cross product: $A \times A^T$
-        return spspmm(adj_p, val_p, adj_p_t, val_p, m, n, m), \
-               spspmm(adj_p, val_p, adj_n_t, val_n, m, n, m), \
-               spspmm(adj_n, val_n, adj_p_t, val_p, m, n, m), \
-               spspmm(adj_n, val_n, adj_n_t, val_n, m, n, m)
 
 
 class Decoder(nn.Module, ABC):
@@ -103,12 +77,12 @@ class Decoder(nn.Module, ABC):
                          args.drop_rate) for i in range(args.num_decoder_layers)
         ])
 
-        self.norm = LayerNorm(channels[-1])
+        self.norm = nn.LayerNorm(channels[-1])
         self.last_layer = nn.Linear(channels[-1], 2)
 
-    def forward(self, xv, xc, adj_pos, adj_neg):
+    def forward(self, xv, xc, graph):
         for layer in self.layers:
-            xv, xc = layer(xv, xc, adj_pos, adj_neg)
+            xv, xc = layer(xv, xc, graph.edge_index_pos, graph.edge_index_neg)
         # return self.norm(xv), self.norm(xc)
         return torch.unsqueeze(softmax(self.last_layer(self.norm(xv)), dim=1)[:, 0], 1) # First column represents closeness to 1
 
@@ -120,16 +94,16 @@ class GraphTransformer(nn.Module, ABC):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, xv, xc, adj_pos, adj_neg):
+    def forward(self, graph):
         # build encoders
-        xv, xc = self.encode(xv, xc, adj_pos, adj_neg)
-        return self.decode(xv, xc, adj_pos, adj_neg)
+        xv, xc = self.encode(graph.xv, graph.xc, graph)
+        return self.decode(xv, xc, graph)
 
-    def encode(self, xv, xc, adj_pos, adj_neg):
-        return self.encoder(xv, xc, adj_pos, adj_neg)
+    def encode(self, xv, xc, graph):
+        return self.encoder(xv, xc, graph)
 
-    def decode(self, xv, xc, adj_pos, adj_neg):
-        return self.decoder(xv, xc, adj_pos, adj_neg)
+    def decode(self, xv, xc, graph):
+        return self.decoder(xv, xc, graph)
 
 
 def make_model(args):
