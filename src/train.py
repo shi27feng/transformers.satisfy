@@ -44,8 +44,8 @@ def run_epoch(data_loader,
                          total=len(data_loader),
                          desc=desc):
         batch = batch.to(device)
-        num_lit = num_literals[i * bs : (i + 1) * bs]
-        num_cls = num_clauses[i * bs : (i + 1) * bs]
+        num_lit = num_literals[i * bs: (i + 1) * bs]
+        num_cls = num_clauses[i * bs: (i + 1) * bs]
         # model.encoder.reset()
         gr_idx_lit = torch.cat([torch.tensor([i] * num_lit[i]) for i in range(num_lit.size(0))]).to(device)
         gr_idx_cls = torch.cat([torch.tensor([i] * num_cls[i]) for i in range(num_cls.size(0))]).to(device)

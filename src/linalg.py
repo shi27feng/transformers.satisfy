@@ -1,4 +1,3 @@
-
 import torch
 from torch import Tensor
 from torch_sparse import spmm, transpose
@@ -31,7 +30,7 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
         offset = torch.tensor([[m], [n]])
         adj_ = torch.cat([adj[i] + offset * i for i in range(heads)], dim=1)
     out = spmm(adj_, nzt_, m * heads, n * heads, x_)
-    return out.view(-1, m, channels)    # [heads, m, channels]
+    return out.view(-1, m, channels)  # [heads, m, channels]
 
 
 def batched_transpose(adj, value, m=None, n=None):
@@ -46,7 +45,7 @@ def batched_transpose(adj, value, m=None, n=None):
         m = maybe_num_nodes(adj[0], m)
         n = maybe_num_nodes(adj[1], n)
         return transpose(adj, value, m, n)
-    else:   # adj is a list of Tensor
+    else:  # adj is a list of Tensor
         adj_ = [None] * value.shape[1]
         vs = torch.zeros(value.shape)
         m = max([maybe_num_nodes(a_[0], m) for a_ in adj])

@@ -128,6 +128,7 @@ def load_checkpoint(path, model, optimizer):
 
 if __name__ == '__main__':
     import os
+
     configs_file = os.path.join(os.getcwd(), 'best_configs.json')
     with open(configs_file, 'r') as f:
         configs = json.load(f)

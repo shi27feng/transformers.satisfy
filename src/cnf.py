@@ -12,8 +12,8 @@ class BipartiteData(Data):
         super(BipartiteData, self).__init__()
         self.edge_index_pos = pos_adj
         self.edge_index_neg = neg_adj
-        self.xv = xv      # variables
-        self.xc = xc      # clauses
+        self.xv = xv  # variables
+        self.xc = xc  # clauses
         self.edge_index_lit_pp = None
         self.edge_index_lit_pn = None
         self.edge_index_lit_np = None
@@ -34,7 +34,6 @@ class BipartiteData(Data):
         self.edge_index_cls_np = self.edge_index_cls_np.to("cpu")
         self.edge_index_cls_nn = self.edge_index_cls_nn.to("cpu")
 
-    
     @staticmethod
     def _cross_product(adj_p, adj_p_t, adj_n, adj_n_t, val_p, val_n, m, n):
         # cross product: $A \times A^T$
@@ -63,7 +62,6 @@ class BipartiteData(Data):
 
         self.edge_index_lit_pp, self.edge_index_lit_pn, self.edge_index_lit_np, self.edge_index_lit_nn = \
             self._cross_product(adj_pos_t, adj_pos, adj_neg_t, adj_neg, val_pos, val_neg, n, m)
-
 
     def __inc__(self, key, value):
         if key in ['edge_index_pos', 'edge_index_neg']:
@@ -138,15 +136,15 @@ class CNFParser:
             elif line.startswith('p cnf'):
                 tokens = line.split()
                 self.num_variables, n_remaining_clauses = int(tokens[2]), \
-                    min(n_remaining_clauses, int(tokens[3]))
+                                                          min(n_remaining_clauses, int(tokens[3]))
                 self.num_clauses = n_remaining_clauses
             elif clause_index < n_remaining_clauses:
                 for literal in line.split()[:-1]:
                     literal = int(literal)
-                    if literal > 0:   # positive
+                    if literal > 0:  # positive
                         self.edge_index_pos[0].append(clause_index)
                         self.edge_index_pos[1].append(literal - 1)  # start from 0
-                    else:   # negative
+                    else:  # negative
                         self.edge_index_neg[0].append(clause_index)
                         self.edge_index_neg[1].append(abs(literal) - 1)  # start from 0
                 clause_index += 1
@@ -160,4 +158,3 @@ class CNFParser:
         pos_adj = torch.tensor(self.edge_index_pos)
         neg_adj = torch.tensor(self.edge_index_neg)
         return BipartiteData(pos_adj, neg_adj, xv, xc)
-

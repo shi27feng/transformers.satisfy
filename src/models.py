@@ -17,7 +17,7 @@ class Encoder(nn.Module, ABC):
     def __init__(self, args):
         super(Encoder, self).__init__()
         self.cached_adj = None
-        self.activation  = relu if args.activation == 'relu' else None
+        self.activation = relu if args.activation == 'relu' else None
         self.device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
         self.cached_cls_pos_pos = None
         self.cached_cls_pos_neg = None
@@ -49,11 +49,11 @@ class Encoder(nn.Module, ABC):
         meta paths are only calculated once
         """
 
-        meta_paths_lit = [graph.edge_index_lit_pp,   # $$A \times A^T$$
+        meta_paths_lit = [graph.edge_index_lit_pp,  # $$A \times A^T$$
                           graph.edge_index_lit_pn,
                           graph.edge_index_lit_np,
                           graph.edge_index_lit_nn]
-        meta_paths_cls = [graph.edge_index_cls_pp,   # $$A^T \times A$$
+        meta_paths_cls = [graph.edge_index_cls_pp,  # $$A^T \times A$$
                           graph.edge_index_cls_pn,
                           graph.edge_index_cls_np,
                           graph.edge_index_cls_nn]
@@ -63,10 +63,8 @@ class Encoder(nn.Module, ABC):
                            graph.edge_index_pos, graph.edge_index_neg)
             if self.activation is not None:
                 xv, xc = self.activation(xv), self.activation(xc)
-                   
+
         return self.norm(xv), self.norm(xc)
-
-
 
 
 class Decoder(nn.Module, ABC):
@@ -85,7 +83,7 @@ class Decoder(nn.Module, ABC):
 
         self.norm = nn.LayerNorm(channels[-1])
         self.last_layer = nn.Linear(channels[-1], 2)
-        self.activation  = relu if args.activation == 'relu' else None
+        self.activation = relu if args.activation == 'relu' else None
 
     def forward(self, xv, xc, graph):
         for layer in self.layers:
@@ -93,7 +91,8 @@ class Decoder(nn.Module, ABC):
             if self.activation is not None:
                 xv, xc = self.activation(xv), self.activation(xc)
 
-        return torch.unsqueeze(softmax(self.last_layer(self.norm(xv)), dim=1)[:, 0], 1) # First column represents closeness to 1
+        return torch.unsqueeze(softmax(self.last_layer(self.norm(xv)), dim=1)[:, 0],
+                               1)  # First column represents closeness to 1
 
 
 class GraphTransformer(nn.Module, ABC):
