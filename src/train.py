@@ -70,8 +70,8 @@ def main():
     # download and save the dataset
     dataset = SATDataset(args.root, args.dataset, use_negative=False)
     dataset, perm = dataset.shuffle(return_perm=True)
-    dataset.num_clauses = dataset.num_clauses[perm]
-    dataset.num_literals = dataset.num_literals[perm]
+    num_clauses = dataset.num_clauses[perm]
+    num_literals = dataset.num_literals[perm]
 
     # randomly split into around 80% train, 10% val and 10% train
     last_train, last_valid = int(len(dataset) * 0.8), int(len(dataset) * 0.9)
@@ -100,6 +100,7 @@ def main():
         # print('Epoch: {} Training...'.format(epoch))
         model.train(True)
         total_loss = run_epoch(train_loader, model, loss_compute, device, args, is_train=True,
+                               num_literals=num_literals, num_clauses=num_clauses,
                                desc="Train Epoch {}".format(epoch))
         print('Epoch: {} Evaluating...'.format(epoch))
         # TODO Save model
@@ -109,11 +110,13 @@ def main():
         # Validation
         model.eval()
         total_loss = run_epoch(valid_loader, model, loss_compute, device, args, is_train=False,
+                               num_literals=num_literals, num_clauses=num_clauses,
                                desc="\t Valid Epoch {}".format(epoch))
 
     print('Testing...')
     model.eval()
-    total_loss = run_epoch(test_loader, model, loss_compute, device, is_train=False)
+    total_loss = run_epoch(test_loader, model, loss_compute, device, is_train=False,
+                           num_literals=num_literals, num_clauses=num_clauses)
 
 
 if __name__ == "__main__":
