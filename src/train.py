@@ -52,11 +52,13 @@ def run_epoch(data_loader,
         with torch.set_grad_enabled(is_train):
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
             xv = model(batch, args)
-            loss = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), gr_idx_cls[: batch.xc.size(0)], is_train)
+            loss, sm = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), gr_idx_cls[: batch.xc.size(0)], is_train)
             total_loss += loss
     elapsed = time.time() - start
     num_items = len(data_loader)
     print('average loss: {}; average time: {}'.format(total_loss / num_items, elapsed / num_items))
+    if i == 3:
+        print(sm[:100])
     return total_loss
     # TODO accuracy
     # print('accuracy: {}'.format(loss_compute.accuracy))
@@ -94,7 +96,7 @@ def main():
         print("Load Model: ", last_epoch)
 
     loss_metric = LossMetric()
-    loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.energy)
+    loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.log_loss, debug=True)
 
     for epoch in range(last_epoch, args.epoch_num + last_epoch):
         # print('Epoch: {} Training...'.format(epoch))
