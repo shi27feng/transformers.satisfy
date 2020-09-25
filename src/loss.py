@@ -46,7 +46,8 @@ class LossCompute(nn.Module, ABC):
             adj[0] is an array of clause indices, adj[1] is an array of variables
         """     
         sm = self.get_sm(xv, adj_pos, adj_neg, self.p, self.a)
-        _loss = self.metric(sm, clause_count, gr_idx_cls)
+        # print("XV distance: ", (xv - 0.5).square().sum() * 0.01)
+        _loss = self.metric(sm, clause_count, gr_idx_cls) - (xv - 0.5).square().sum() * 0.005
 
         if self.opt is not None and is_train:
             self.opt.optimizer.zero_grad()
@@ -93,6 +94,7 @@ class LossMetric():
 
     @staticmethod
     def energy(sm, clause_count, gr_idx_cls):
+        # print(sm)
         return torch.log(gr_idx_cls[-1] + 1.) - torch.sum(scatter(sm, gr_idx_cls, reduce="min")).log()
 
 
