@@ -21,7 +21,9 @@ def run_epoch(data_loader,
               device,
               args,
               is_train=True,
-              desc=None):
+              desc=None,
+              num_literals=None,
+              num_clauses=None):
     """Standard Training and Logging Function
     Args:
         data_loader: SATDataset
@@ -34,11 +36,16 @@ def run_epoch(data_loader,
     # torch.autograd.set_detect_anomaly(True)
     total_loss = 0
     start = time.time()
+    bs = args.batch_size
     for i, batch in tqdm(enumerate(data_loader),
                          total=len(data_loader),
                          desc=desc):
         batch = batch.to(device)
+        num_lit = num_literals[i * bs, (i + 1) * bs]
+        num_cls = num_clauses[i * bs, (i + 1) * bs]
         # model.encoder.reset()
+        gr_idx_lit = torch.cat([torch.tensor([i] * num_lit[i]) for i in range(num_lit.size(0))])
+        gr_idx_cls = torch.cat([torch.tensor([i] * num_cls[i]) for i in range(num_cls.size(0))])
         with torch.set_grad_enabled(is_train):
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
             xv = model(batch, args)
@@ -52,8 +59,6 @@ def run_epoch(data_loader,
     # print('accuracy: {}'.format(loss_compute.accuracy))
 
 
-
-
 def main():
     args = make_args()
     device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
@@ -61,18 +66,18 @@ def main():
 
     # download and save the dataset
     dataset = SATDataset(args.root, args.dataset, use_negative=False)
+    dataset, perm = dataset.shuffle(return_perm=True)
+    dataset.num_clauses = dataset.num_clauses[perm]
+    dataset.num_literals = dataset.num_literals[perm]
 
     # randomly split into around 80% train, 10% val and 10% train
     last_train, last_valid = int(len(dataset) * 0.8), int(len(dataset) * 0.9)
     train_loader = DataLoader(dataset[:last_train],
-                              batch_size=args.batch_size,
-                              shuffle=True)
+                              batch_size=args.batch_size)
     valid_loader = DataLoader(dataset[last_train: last_valid],
-                              batch_size=args.batch_size,
-                              shuffle=True)
+                              batch_size=args.batch_size)
     test_loader = DataLoader(dataset[last_valid:],
-                             batch_size=args.batch_size,
-                             shuffle=True)
+                             batch_size=args.batch_size)
 
     # criterion = LabelSmoothing(V, padding_idx=dataset.pad_id, smoothing=0.1)
     # make_model black box
@@ -84,7 +89,7 @@ def main():
         import os.path as osp
         last_epoch, loss = load_checkpoint(osp.join(args.save_root, args.save_name, '_' + last_epoch), model, noam_opt)
         print("Load Model: ", last_epoch)
-    
+
     loss_metric = LossMetric()
     loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.log_loss)
 
@@ -110,5 +115,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
