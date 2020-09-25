@@ -48,7 +48,9 @@ class LossCompute(nn.Module, ABC):
         """
         sm = self.get_sm(xv, adj_pos, adj_neg, self.p, self.a)
         # print("XV distance: ", (xv - 0.5).square().sum() * 0.01)
-        _loss = self.metric(sm, clause_count, gr_idx_cls) - relu(10*(sm - 0.45)).sum() * 0.005
+        _loss = self.metric(sm, clause_count, gr_idx_cls) 
+        if is_train:
+            _loss -= relu(10*(sm - 0.45)).sum() * 0.005
 
         if self.opt is not None and is_train:
             self.opt.optimizer.zero_grad()
@@ -94,9 +96,8 @@ class LossMetric():
 
 
     @staticmethod
-    def energy(sm, clause_count, gr_idx_cls):
-        # print(sm)
-        return (gr_idx_cls[-1] + 1.) - torch.sum(scatter(sm, gr_idx_cls, reduce="min").log())
+    def accuracy(sm, clause_count, gr_idx_cls):
+        return ((scatter(sm, gr_idx_cls, reduce="min")) // 0.500001).sum()
 
 
 def literal(xi, e):

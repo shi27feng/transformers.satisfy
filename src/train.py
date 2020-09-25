@@ -56,15 +56,18 @@ def run_epoch(data_loader,
             total_loss += loss
     elapsed = time.time() - start
     num_items = len(data_loader)
-    print('average loss: {}; average time: {}'.format(total_loss / num_items, elapsed / num_items))
+    ms = 'average loss' if is_train else 'accuracy '
+    print(ms +  ': {}; average time: {}'.format(total_loss / num_items, elapsed / num_items))
     if i == 3:
         print(sm[:100])
+        print(sm[:100] // 0.50001)
     return total_loss
     # TODO accuracy
     # print('accuracy: {}'.format(loss_compute.accuracy))
 
 
 def main():
+    # torch.cuda.empty_cache()
     args = make_args()
     device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
     # device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -97,6 +100,7 @@ def main():
 
     loss_metric = LossMetric()
     loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.log_loss, debug=True)
+    accuracy_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.accuracy, debug=True)
 
     for epoch in range(last_epoch, args.epoch_num + last_epoch):
         # print('Epoch: {} Training...'.format(epoch))
@@ -111,13 +115,13 @@ def main():
 
         # Validation
         model.eval()
-        total_loss = run_epoch(valid_loader, model, loss_compute, device, args, is_train=False,
+        total_loss = run_epoch(valid_loader, model, accuracy_compute, device, args, is_train=False,
                                num_literals=num_literals, num_clauses=num_clauses,
                                desc="\t Valid Epoch {}".format(epoch))
 
     print('Testing...')
     model.eval()
-    total_loss = run_epoch(test_loader, model, loss_compute, device, is_train=False,
+    total_loss = run_epoch(test_loader, model, accuracy_compute, device, args, is_train=False,
                            num_literals=num_literals, num_clauses=num_clauses)
 
 
