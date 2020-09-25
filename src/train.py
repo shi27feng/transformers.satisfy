@@ -19,6 +19,7 @@ def run_epoch(data_loader,
               model,
               loss_compute,
               device,
+              args,
               is_train=True,
               desc=None):
     """Standard Training and Logging Function
@@ -40,7 +41,7 @@ def run_epoch(data_loader,
         # model.encoder.reset()
         with torch.set_grad_enabled(is_train):
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
-            xv = model(batch)
+            xv = model(batch, args)
             loss = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), is_train)
             total_loss += loss
     elapsed = time.time() - start
@@ -75,20 +76,22 @@ def main():
 
     # criterion = LabelSmoothing(V, padding_idx=dataset.pad_id, smoothing=0.1)
     # make_model black box
+    last_epoch = 0
     model = make_model(args).to(device)
     noam_opt = get_std_opt(model, args)
-    last_epoch = 0
     if args.load_model:
+        last_epoch = args.load_epoch
         import os.path as osp
-        last_epoch, loss = load_checkpoint(osp.join(args.save_root, args.save_name), model, noam_opt)
-
+        last_epoch, loss = load_checkpoint(osp.join(args.save_root, args.save_name, '_' + last_epoch), model, noam_opt)
+        print("Load Model: ", last_epoch)
+    
     loss_metric = LossMetric()
-    loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.square_loss)
+    loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.log_loss)
 
-    for epoch in range(last_epoch, args.epoch_num):
+    for epoch in range(last_epoch, args.epoch_num + last_epoch):
         # print('Epoch: {} Training...'.format(epoch))
         model.train(True)
-        total_loss = run_epoch(train_loader, model, loss_compute, device, is_train=True,
+        total_loss = run_epoch(train_loader, model, loss_compute, device, args, is_train=True,
                                desc="Train Epoch {}".format(epoch))
         print('Epoch: {} Evaluating...'.format(epoch))
         # TODO Save model
@@ -97,7 +100,7 @@ def main():
 
         # Validation
         model.eval()
-        total_loss = run_epoch(valid_loader, model, loss_compute, device, is_train=False,
+        total_loss = run_epoch(valid_loader, model, loss_compute, device, args, is_train=False,
                                desc="\t Valid Epoch {}".format(epoch))
 
     print('Testing...')

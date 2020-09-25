@@ -3,10 +3,12 @@ from abc import ABC
 
 import torch
 import torch.nn as nn
-from torch.nn.functional import softmax
+from torch.nn.functional import softmax, relu
 from layers import clones, SublayerConnection, EncoderLayer, DecoderLayer
 from torch_sparse import spspmm, transpose
 from torch_geometric.utils.num_nodes import maybe_num_nodes
+from torch_scatter import scatter
+from loss import LossCompute
 
 
 class Encoder(nn.Module, ABC):
@@ -15,6 +17,7 @@ class Encoder(nn.Module, ABC):
     def __init__(self, args):
         super(Encoder, self).__init__()
         self.cached_adj = None
+        self.activation  = relu if args.activation == 'relu' else None
         self.device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
         self.cached_cls_pos_pos = None
         self.cached_cls_pos_neg = None
@@ -58,6 +61,9 @@ class Encoder(nn.Module, ABC):
             xv, xc = layer(xv, xc,
                            meta_paths_lit, meta_paths_cls,
                            graph.edge_index_pos, graph.edge_index_neg)
+            if self.activation is not None:
+                xv, xc = self.activation(xv), self.activation(xc)
+                   
         return self.norm(xv), self.norm(xc)
 
 
@@ -79,25 +85,33 @@ class Decoder(nn.Module, ABC):
 
         self.norm = nn.LayerNorm(channels[-1])
         self.last_layer = nn.Linear(channels[-1], 2)
+        self.activation  = relu if args.activation == 'relu' else None
 
     def forward(self, xv, xc, graph):
         for layer in self.layers:
             xv, xc = layer(xv, xc, graph.edge_index_pos, graph.edge_index_neg)
-        # return self.norm(xv), self.norm(xc)
+            if self.activation is not None:
+                xv, xc = self.activation(xv), self.activation(xc)
+
         return torch.unsqueeze(softmax(self.last_layer(self.norm(xv)), dim=1)[:, 0], 1) # First column represents closeness to 1
 
 
 class GraphTransformer(nn.Module, ABC):
 
-    def __init__(self, encoder, decoder):
+    def __init__(self, encoder, decoder, encoder2, decoder2):
         super(GraphTransformer, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self.encoder2 = encoder2
+        self.decoder2 = decoder2
 
-    def forward(self, graph):
+    def forward(self, graph, args):
         # build encoders
-        xv, xc = self.encode(graph.xv, graph.xc, graph)
-        return self.decode(xv, xc, graph)
+        xv, xc = self.encoder(graph.xv, graph.xc, graph)
+        xv = self.decoder(xv, xc, graph)
+        sm = LossCompute.get_sm(xv, graph.edge_index_pos, graph.edge_index_neg, args.sm_par, args.sig_par)
+        xv, xc = self.encoder2(xv, sm.unsqueeze(1), graph)
+        return self.decoder2(xv, xc, graph)
 
     def encode(self, xv, xc, graph):
         return self.encoder(xv, xc, graph)
@@ -109,6 +123,8 @@ class GraphTransformer(nn.Module, ABC):
 def make_model(args):
     """ Helper: Construct a model from hyper-parameters. """
     model = GraphTransformer(
+        Encoder(args),
+        Decoder(args),
         Encoder(args),
         Decoder(args))
 

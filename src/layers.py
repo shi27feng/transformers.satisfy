@@ -108,8 +108,8 @@ class EncoderLayer(nn.Module, ABC):
     def forward(self, xv, xc, meta_paths_lit, meta_paths_cls, adj_pos, adj_neg):
         # xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.lit_path_weights)
         # xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.cls_path_weights)
-        xv = self.lit_embedding(xv)
-        xc = self.cls_embedding(xc)
+        xv = fn.relu(self.lit_embedding(xv))
+        xc = fn.relu(self.cls_embedding(xc))
         xv = self._attention_meta_path(xv,
                                        meta_paths_lit, self.self_lit_attentions,
                                        self.sublayer_lit, self.lit_path_weights)

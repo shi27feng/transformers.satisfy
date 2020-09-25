@@ -44,15 +44,8 @@ class LossCompute(nn.Module, ABC):
             adj_neg: Tensor
         Desc:
             adj[0] is an array of clause indices, adj[1] is an array of variables
-        """
-        xv = xv.view(-1)
-        xn = negation(xv)
-        xe = torch.cat((torch.exp(self.p * xv)[adj_pos[1]], torch.exp(self.p * xn)[adj_neg[1]]))  # exp(x*p)
-        numerator = torch.mul(torch.cat((xv[adj_pos[1]],xn[adj_neg[1]])), xe)  # x*exp(x*p)
-        idx = torch.cat((adj_pos[0], adj_neg[0]))
-        numerator = scatter(numerator, idx, reduce="sum")
-        dominator = scatter(xe, idx, reduce="sum")
-        sm = push_to_side(torch.div(numerator, dominator), self.a)  # S(MAX')
+        """     
+        sm = self.get_sm(xv, adj_pos, adj_neg, self.p, self.a)
         _loss = self.metric(sm, clause_count)
 
         if self.opt is not None and is_train:
@@ -66,6 +59,23 @@ class LossCompute(nn.Module, ABC):
 
         return _loss
 
+    @staticmethod
+    def get_sm(xv, adj_pos, adj_neg, p, a):
+        xv = xv.view(-1)
+        xn = 1 - xv
+        xe = torch.cat((torch.exp(p * xv)[adj_pos[1]], torch.exp(p * xn)[adj_neg[1]]))  # exp(x*p)
+        numerator = torch.mul(torch.cat((xv[adj_pos[1]],xn[adj_neg[1]])), xe)  # x*exp(x*p)
+        idx = torch.cat((adj_pos[0], adj_neg[0]))
+        numerator = scatter(numerator, idx, reduce="sum")
+        dominator = scatter(xe, idx, reduce="sum")
+        return LossCompute.push_to_side(torch.div(numerator, dominator), a)  # S(MAX')
+
+    @staticmethod
+    def push_to_side(x, a):  # larger a means push harder
+        return 1 / (1 + torch.exp(a * (0.5 - x)))
+
+    
+
 class LossMetric():
     @staticmethod
     def log_loss(sm, clause_count):
@@ -76,7 +86,7 @@ class LossMetric():
         return mse_loss(sm, (torch.ones(clause_count) + 0.1).to(sm.device))
     @staticmethod
     def square_loss(sm, clause_count):
-        return (1 - sm).square().sum()
+        return (10*(1 - sm)).square().sum()
 
 
 
@@ -88,11 +98,6 @@ def literal(xi, e):
 
 def negation(xi):
     return 1 - xi
-
-
-def push_to_side(x, a):  # larger a means push harder
-    return 1 / (1 + torch.exp(a * (0.5 - x)))
-
 
 def smooth_max(x, p):  # Approx Max If p is large, but will produce inf for p too large
     exponential = torch.exp(p * x)
