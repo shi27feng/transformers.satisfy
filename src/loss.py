@@ -79,7 +79,7 @@ class LossCompute(nn.Module, ABC):
 class LossMetric():
     @staticmethod
     def log_loss(sm, clause_count):
-        log_smooth = torch.log(sm + 0.05)
+        log_smooth = torch.log(sm + 0.01)
         return -torch.sum(log_smooth)
     @staticmethod
     def linear_loss(sm, clause_count):
