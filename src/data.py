@@ -50,7 +50,7 @@ class SATDataset(InMemoryDataset, ABC):
             os.mkdir(osp.join(root, "raw"))
         super(SATDataset, self).__init__(root, transform, pre_transform)
         path = osp.join(self.processed_dir, self.processed_file_names)
-        self.data, self.sat = torch.load(path)
+        self.data, self.sat, self.num_literals, self.num_clauses = torch.load(path)
 
     @property
     def raw_file_names(self):
@@ -85,17 +85,19 @@ class SATDataset(InMemoryDataset, ABC):
     def process(self):
         parser = CNFParser()
         fs = listdir(self.raw_dir)
-        pbar = tqdm(fs)
+        progress_bar = tqdm(fs)
         sat = torch.ones(len(fs))
-        data_list = []
+        data_list, num_literals, num_clauses = [], [], []
         idx = 0
-        for f in pbar:
+        for f in progress_bar:
             sleep(1e-4)
-            pbar.set_description("processing %s" % f)
+            progress_bar.set_description("processing %s" % f)
             path = os.path.join(self.raw_dir, f)
             parser.read(path)
             parser.parse_dimacs()
             data = parser.to_bipartite()
+            num_literals.append(data.xv.size(0))
+            num_clauses.append(data.xc.size(0))
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue
             if self.pre_transform is not None:
@@ -106,11 +108,15 @@ class SATDataset(InMemoryDataset, ABC):
             elif not parser.satisfied:
                 sat[idx] = 0.0
             idx += 1
-        torch.save([data_list, sat], osp.join(self.processed_dir,
-                                              self.processed_file_names))
+        num_literals = torch.tensor(num_literals)
+        num_clauses = torch.tensor(num_clauses)
+        torch.save([data_list, sat, num_literals, num_clauses],
+                   osp.join(self.processed_dir,
+                            self.processed_file_names))
 
     def len(self):
         return len(self.data)
 
     def get(self, idx):
         return self.data[idx]  # , self.sat[idx]
+
