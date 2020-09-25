@@ -36,7 +36,7 @@ class LossCompute(nn.Module, ABC):
         self.metric = metric
 
     # def forward(self, xv, adj_pos, adj_neg):
-    def __call__(self, xv, adj_pos, adj_neg, clause_count, is_train):
+    def __call__(self, xv, adj_pos, adj_neg, clause_count, gr_idx_cls, is_train):
         """
         Args:
             xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
@@ -46,7 +46,7 @@ class LossCompute(nn.Module, ABC):
             adj[0] is an array of clause indices, adj[1] is an array of variables
         """     
         sm = self.get_sm(xv, adj_pos, adj_neg, self.p, self.a)
-        _loss = self.metric(sm, clause_count)
+        _loss = self.metric(sm, clause_count, gr_idx_cls)
 
         if self.opt is not None and is_train:
             self.opt.optimizer.zero_grad()
@@ -78,15 +78,21 @@ class LossCompute(nn.Module, ABC):
 
 class LossMetric():
     @staticmethod
-    def log_loss(sm, clause_count):
+    def log_loss(sm, clause_count, gr_idx_cls):
         log_smooth = torch.log(sm + 0.01)
         return -torch.sum(log_smooth)
+
     @staticmethod
-    def linear_loss(sm, clause_count):
+    def linear_loss(sm, clause_count, gr_idx_cls):
         return mse_loss(sm, (torch.ones(clause_count) + 0.1).to(sm.device))
+
     @staticmethod
-    def square_loss(sm, clause_count):
+    def square_loss(sm, clause_count, gr_idx_cls):
         return (10*(1 - sm)).square().sum()
+
+    @staticmethod
+    def energy(sm, clause_count, gr_idx_cls):
+        return log(gr_idx_cls[-1] + 1) - torch.sum(scatter(sm, gr_idx_cls, reduce="min")).log()
 
 
 
