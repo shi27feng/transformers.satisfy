@@ -29,7 +29,7 @@ def make_args():
                         help='whether load_model')
     parser.add_argument('--load_epoch', dest='load_epoch', default=0, type=int,
                         help='whether load_model')
-    parser.add_argument('--batch_size', dest='batch_size', default=8,
+    parser.add_argument('--batch_size', dest='batch_size', default=32,
                         type=int)  # implemented via accumulating gradient
     parser.add_argument('--num_layers', dest='num_layers', default=2, type=int)
     parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=3, type=int)
@@ -44,7 +44,7 @@ def make_args():
     parser.add_argument('--lr', dest='lr', default=1e-6, type=float)
     parser.add_argument('--weight_decay', dest='weight_decay',default=0.01, type=float)
     parser.add_argument('--sm_par', dest='sm_par', default=5, type=float)
-    parser.add_argument('--sig_par', dest='sig_par', default=10, type=float)
+    parser.add_argument('--sig_par', dest='sig_par', default=15, type=float)
     parser.add_argument('--warmup_steps', dest='warmup_steps', default=200, type=float)
     parser.add_argument('--opt_train_factor', dest='opt_train_factor', default=4, type=float)
     parser.add_argument('--epoch_num', dest='epoch_num', default=501, type=int)   # paper used: 2001
@@ -53,6 +53,6 @@ def make_args():
     parser.add_argument('--save_root', dest='save_root', default='saved_model', type=str)
     parser.add_argument('--save_name', dest='save_name', default='check_point', type=str)
 
-    parser.set_defaults(gpu=True, dataset='RND3SAT/uf250-1065', load_model=False, load_epoch = 500)
+    parser.set_defaults(gpu=True, dataset='RND3SAT/uf50-218', load_model=False, load_epoch = 500)
     args = parser.parse_args()
     return args

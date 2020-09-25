@@ -62,9 +62,10 @@ class LossCompute(nn.Module, ABC):
     @staticmethod
     def get_sm(xv, adj_pos, adj_neg, p, a):
         xv = xv.view(-1)
+        xv = LossCompute.push_to_side(xv, a)
         xn = 1 - xv
         xe = torch.cat((torch.exp(p * xv)[adj_pos[1]], torch.exp(p * xn)[adj_neg[1]]))  # exp(x*p)
-        numerator = torch.mul(torch.cat((xv[adj_pos[1]],xn[adj_neg[1]])), xe)  # x*exp(x*p)
+        numerator = torch.mul(torch.cat((xv[adj_pos[1]], xn[adj_neg[1]])), xe)  # x*exp(x*p)
         idx = torch.cat((adj_pos[0], adj_neg[0]))
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
@@ -92,10 +93,7 @@ class LossMetric():
 
     @staticmethod
     def energy(sm, clause_count, gr_idx_cls):
-        return log(gr_idx_cls[-1] + 1) - torch.sum(scatter(sm, gr_idx_cls, reduce="min")).log()
-
-
-
+        return torch.log(gr_idx_cls[-1] + 1.) - torch.sum(scatter(sm, gr_idx_cls, reduce="min")).log()
 
 
 def literal(xi, e):
