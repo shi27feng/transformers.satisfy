@@ -21,6 +21,7 @@ def clones(module, k):
         copy.deepcopy(module) for i in range(k)
     )
 
+
 '''
 class LayerNorm(nn.Module, ABC):
     """Construct a layer-norm module (See citation for details)."""
@@ -37,6 +38,7 @@ class LayerNorm(nn.Module, ABC):
         print()
         return self.alpha * (x - mean) / (std + self.eps) + self.beta
 '''
+
 
 class SublayerConnection(nn.Module, ABC):
     """
@@ -279,11 +281,11 @@ class HGAConv(MessagePassing):
         # propagate_type: (x: OptPairTensor, alpha: OptPairTensor)
         xpar = (x_l, x_r) if x_r is not None else x_l
         alphapar = (alpha_l, alpha_r)
-        alpha_  = (alpha_l_, alpha_r_)
+        alpha_ = (alpha_l_, alpha_r_)
         out = self.propagate(adj,
-                             x = xpar,
-                             alpha = alphapar,
-                             alpha_ = alpha_,
+                             x=xpar,
+                             alpha=alphapar,
+                             alpha_=alpha_,
                              size=size)
 
         alpha = self._alpha
@@ -322,7 +324,7 @@ class HGAConv(MessagePassing):
             alpha_ = kwargs.get('alpha_', Pr.empty)
             score_ = self.edge_score(adj=adj, a_l=alpha_[1], a_r=alpha_[0], is_cross=isinstance(x, Tensor))
             score = (score, score_)
-        
+
         out = self.message_and_aggregate(adj, x=x, score=score)
 
         return self.update(out)
@@ -396,10 +398,12 @@ if __name__ == "__main__":
     valid_ds = ds[last_trn: last_val]
     test_ds = ds[last_val:]
     from loss import SimpleLossCompute2
+
     model = models.make_model(args)
     from optimizer import get_std_opt
-    opt = get_std_opt(model, args)  
-    loader = DataLoader(ds[0:4*64], batch_size=64)
+
+    opt = get_std_opt(model, args)
+    loader = DataLoader(ds[0:4 * 64], batch_size=64)
     loss_func = SimpleLossCompute2(30, 100, opt)
 
     for test_data in loader:

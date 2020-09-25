@@ -6,7 +6,8 @@ import torch.nn as nn
 from torch_scatter import scatter
 from torch.nn.functional import mse_loss
 
-class AccuracyCompute(nn.Module):  # TODO add batch
+
+class AccuracyCompute(nn.Module, ABC):  # TODO add batch
     def __init__(self):
         super(AccuracyCompute, self).__init__()
 
@@ -19,12 +20,12 @@ class AccuracyCompute(nn.Module):  # TODO add batch
         idx = torch.cat((adj_pos[0], adj_neg[0]))
         clause_sat = scatter(x, idx, reduce="sum")
         return min(clause_sat)
-        
 
 
 class LabelSmoothing(nn.Module, ABC):
     def __init__(self):
         super(LabelSmoothing, self).__init__()
+
 
 class LossCompute(nn.Module, ABC):
     def __init__(self, p, a, opt=None, metric=None, debug=False):
@@ -44,7 +45,7 @@ class LossCompute(nn.Module, ABC):
             adj_neg: Tensor
         Desc:
             adj[0] is an array of clause indices, adj[1] is an array of variables
-        """     
+        """
         sm = self.get_sm(xv, adj_pos, adj_neg, self.p, self.a)
         # print("XV distance: ", (xv - 0.5).square().sum() * 0.01)
         _loss = self.metric(sm, clause_count, gr_idx_cls) - (xv - 0.5).square().sum() * 0.005
@@ -53,7 +54,6 @@ class LossCompute(nn.Module, ABC):
             self.opt.optimizer.zero_grad()
             _loss.backward()
             self.opt.step()
-            
 
         if self.debug:
             return _loss, sm
@@ -76,7 +76,6 @@ class LossCompute(nn.Module, ABC):
     def push_to_side(x, a):  # larger a means push harder
         return 1 / (1 + torch.exp(a * (0.5 - x)))
 
-    
 
 class LossMetric():
     @staticmethod
@@ -90,7 +89,7 @@ class LossMetric():
 
     @staticmethod
     def square_loss(sm, clause_count, gr_idx_cls):
-        return (10*(1 - sm)).square().sum()
+        return (10 * (1 - sm)).square().sum()
 
     @staticmethod
     def energy(sm, clause_count, gr_idx_cls):
@@ -104,6 +103,7 @@ def literal(xi, e):
 
 def negation(xi):
     return 1 - xi
+
 
 def smooth_max(x, p):  # Approx Max If p is large, but will produce inf for p too large
     exponential = torch.exp(p * x)
@@ -133,6 +133,3 @@ if __name__ == "__main__":
         [1, 2],
         [0, 1],
     ])
-
-    
-    
