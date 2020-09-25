@@ -32,6 +32,9 @@ def run_epoch(data_loader,
         device: int
         is_train: bool
         desc: str
+        args: dict
+        num_clauses: tensor
+        num_literals: tensor
     """
     # torch.autograd.set_detect_anomaly(True)
     total_loss = 0
