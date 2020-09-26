@@ -97,20 +97,15 @@ class Decoder(nn.Module, ABC):
 
 class GraphTransformer(nn.Module, ABC):
 
-    def __init__(self, encoder, decoder, encoder2, decoder2):
+    def __init__(self, encoder, decoder):
         super(GraphTransformer, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.encoder2 = encoder2
-        self.decoder2 = decoder2
-
+        
     def forward(self, graph, args):
         # build encoders
         xv, xc = self.encoder(graph.xv, graph.xc, graph)
-        xv = self.decoder(xv, xc, graph)
-        sm = LossCompute.get_sm(xv, graph.edge_index_pos, graph.edge_index_neg, args.sm_par, args.sig_par)
-        xv, xc = self.encoder2(xv, sm.unsqueeze(1), graph)
-        return self.decoder2(xv, xc, graph)
+        return self.decoder(xv, xc, graph)
 
     def encode(self, xv, xc, graph):
         return self.encoder(xv, xc, graph)
@@ -122,8 +117,6 @@ class GraphTransformer(nn.Module, ABC):
 def make_model(args):
     """ Helper: Construct a model from hyper-parameters. """
     model = GraphTransformer(
-        Encoder(args),
-        Decoder(args),
         Encoder(args),
         Decoder(args))
 

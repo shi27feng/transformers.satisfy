@@ -79,6 +79,31 @@ class LossCompute(nn.Module, ABC):
     def push_to_side(x, a):  # larger a means push harder
         return 1 / (1 + torch.exp(a * (0.5 - x)))
 
+def flip_search(xv, xc, adj_pos, adj_neg, ori_accuracy):
+    accuracy_compute = AccuracyCompute()
+    index = torch.range(1, xc.size(0))[xc <= 0.5]
+    best_lit = None
+    best_acc = None
+    visited_lit = []
+    for cls in index:
+        pos_flip = adj_pos[1][adj_pos[0] == cls]
+        neg_flip = adj_neg[1][adj_neg[0] == cls]
+        for lit in torch.cat((pos_flip, neg_flip)):
+            if lit in visited_lit:
+                continue
+            visited_lit.append(lit)
+            xv_ = xv.clone()
+            xv_[lit] = 1 - xv_[lit]
+            accuracy = accuracy_compute(xv_, adj_pos, adj_neg)
+            if accuracy > ori_accuracy:
+                best_lit = lit
+                best_acc = accuracy
+    if best_lit is not None:
+        xv[best_lit] = 1 -  xv[best_lit]
+        return best_acc
+
+
+
 
 class LossMetric():
     @staticmethod
