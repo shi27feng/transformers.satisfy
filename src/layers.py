@@ -6,13 +6,13 @@ from typing import Union, Tuple, Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as fn
-from torch.nn.functional import relu
 from torch import Tensor
 from torch.nn import Parameter, Linear
+from torch.nn.functional import relu
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
 from torch_geometric.utils import softmax
-from torch_sparse import transpose
+
 from linalg import batched_spmm, batched_transpose
 from utils import self_loop_augment
 
@@ -111,6 +111,7 @@ class EncoderLayer(nn.Module, ABC):
             res += path_weights[i] * sublayers[i](x, att_layers[i](x, meta_paths[i]))  # TODO 
         return res
     '''
+
     @staticmethod
     def _attention_meta_path(x, meta_paths, att_layers, path_weights):
         assert len(att_layers) == len(meta_paths), "the length should match"
@@ -135,13 +136,13 @@ class EncoderLayer(nn.Module, ABC):
                                        self.sublayer_cls, self.cls_path_weights)
         '''
         xv = relu(self.sublayer_lit(xv, (lambda x: self._attention_meta_path(x,
-                                                                       meta_paths_lit,
-                                                                       self.self_lit_attentions,
-                                                                       self.lit_path_weights))))
+                                                                             meta_paths_lit,
+                                                                             self.self_lit_attentions,
+                                                                             self.lit_path_weights))))
         xc = relu(self.sublayer_cls(xc, (lambda x: self._attention_meta_path(x,
-                                                                       meta_paths_cls,
-                                                                       self.self_cls_attentions,
-                                                                       self.cls_path_weights))))
+                                                                             meta_paths_cls,
+                                                                             self.self_cls_attentions,
+                                                                             self.cls_path_weights))))
         xv_pos, xc_pos = self.cross_attention_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.cross_attention_neg((xv, xc), adj_neg)
 
