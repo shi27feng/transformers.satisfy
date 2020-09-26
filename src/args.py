@@ -45,7 +45,7 @@ def make_args():
     parser.add_argument('--weight_decay', dest='weight_decay', default=0.01, type=float)
     parser.add_argument('--sm_par', dest='sm_par', default=5, type=float)
     parser.add_argument('--sig_par', dest='sig_par', default=15, type=float)
-    parser.add_argument('--warmup_steps', dest='warmup_steps', default=200, type=float)
+    parser.add_argument('--warmup_steps', dest='warmup_steps', default=4000, type=float)
     parser.add_argument('--opt_train_factor', dest='opt_train_factor', default=4, type=float)
     parser.add_argument('--epoch_num', dest='epoch_num', default=501, type=int)  # paper used: 2001
     parser.add_argument('--epoch_log', dest='epoch_log', default=50, type=int)  # test every

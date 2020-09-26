@@ -54,13 +54,11 @@ def run_epoch(data_loader,
             xv = model(batch, args)
             loss, sm = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), gr_idx_cls[: batch.xc.size(0)], is_train)
             total_loss += loss
-        if i == 3:
-            print(sm[:100])
+        if i == 0:
             print("Sat Rate: ", 100 * (sm // 0.50001).mean().item(), "%")
     elapsed = time.time() - start
-    num_items = len(data_loader)
     ms = 'average loss' if is_train else 'accuracy '
-    print(ms +  ': {}; average time: {}'.format(total_loss / num_items, elapsed / num_items))
+    print(ms +  ': {}; average time: {}'.format(total_loss / len(data_loader.dataset), elapsed / len(data_loader.dataset)))
     
     return total_loss
     # TODO accuracy
@@ -118,7 +116,7 @@ def main():
         model.eval()
         total_loss = run_epoch(valid_loader, model, accuracy_compute, device, args, is_train=False,
                                num_literals=num_literals, num_clauses=num_clauses,
-                               desc="\t Valid Epoch {}".format(epoch))
+                               desc="Valid Epoch {}".format(epoch))
 
     print('Testing...')
     model.eval()

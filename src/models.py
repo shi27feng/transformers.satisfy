@@ -3,7 +3,7 @@ from abc import ABC
 
 import torch
 import torch.nn as nn
-from torch.nn.functional import softmax, relu
+from torch.nn.functional import softmax, relu, sigmoid
 from layers import clones, SublayerConnection, EncoderLayer, DecoderLayer
 from torch_sparse import spspmm, transpose
 from torch_geometric.utils.num_nodes import maybe_num_nodes
@@ -37,7 +37,7 @@ class Encoder(nn.Module, ABC):
                          args.num_meta_paths,
                          args.self_att_heads,
                          args.cross_att_heads,
-                         args.drop_rate) for i in range(args.num_encoder_layers)
+                         args.drop_rate) for i in range(len(channels) - 1)
         ])
         self.norm = nn.LayerNorm(channels[-1])
 
@@ -78,11 +78,11 @@ class Decoder(nn.Module, ABC):
                          channels[i + 1],
                          channels[i + 1],
                          args.cross_att_heads,
-                         args.drop_rate) for i in range(args.num_decoder_layers)
+                         args.drop_rate) for i in range(len(channels) - 1)
         ])
 
         self.norm = nn.LayerNorm(channels[-1])
-        self.last_layer = nn.Linear(channels[-1], 2)
+        self.last_layer = nn.Linear(channels[-1], 1)
         self.activation = relu if args.activation == 'relu' else None
 
     def forward(self, xv, xc, graph):
@@ -91,8 +91,8 @@ class Decoder(nn.Module, ABC):
             if self.activation is not None:
                 xv, xc = self.activation(xv), self.activation(xc)
 
-        return torch.unsqueeze(softmax(self.last_layer(self.norm(xv)), dim=1)[:, 0],
-                               1)  # First column represents closeness to 1
+        xv = sigmoid(self.last_layer(xv))
+        return torch.unsqueeze(xv, 1)  # First column represents closeness to 1
 
 
 class GraphTransformer(nn.Module, ABC):

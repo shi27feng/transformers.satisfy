@@ -6,6 +6,7 @@ from typing import Union, Tuple, Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as fn
+from torch.nn.functional import relu
 from torch import Tensor
 from torch.nn import Parameter, Linear
 from torch_geometric.nn.conv import MessagePassing
@@ -84,12 +85,14 @@ class EncoderLayer(nn.Module, ABC):
         self.cls_path_weights = nn.Parameter(torch.ones(num_meta_paths))
 
         self.self_lit_attentions = clones(HGAConv(
-            hidden_dims, hidden_dims, heads=self_att_heads), num_meta_paths)
+            hidden_dims, hidden_dims, heads=self_att_heads, use_self_loops=True), num_meta_paths)
         self.self_cls_attentions = clones(HGAConv(
-            hidden_dims, hidden_dims, heads=self_att_heads), num_meta_paths)
+            hidden_dims, hidden_dims, heads=self_att_heads, use_self_loops=True), num_meta_paths)
 
-        self.sublayer_lit = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
-        self.sublayer_cls = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
+        # self.sublayer_lit = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
+        # self.sublayer_cls = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
+        self.sublayer_lit = SublayerConnection(hidden_dims, drop_rate)
+        self.sublayer_cls = SublayerConnection(hidden_dims, drop_rate)
         self.cross_attention_pos = HGAConv((hidden_dims, hidden_dims),
                                            out_channels, heads=cross_att_heads)
         self.cross_attention_neg = HGAConv((hidden_dims, hidden_dims),
@@ -97,6 +100,7 @@ class EncoderLayer(nn.Module, ABC):
         self.lit_embedding = Linear(in_channels, hidden_dims, False)
         self.cls_embedding = Linear(in_channels, hidden_dims, False)
 
+    '''
     @staticmethod
     def _attention_meta_path(x, meta_paths, att_layers, sublayers, path_weights):
         assert len(att_layers) == len(meta_paths), "the length should match"
@@ -106,22 +110,38 @@ class EncoderLayer(nn.Module, ABC):
         for i in range(len(att_layers)):  # they are not sequential, but in reduction mode
             res += path_weights[i] * sublayers[i](x, att_layers[i](x, meta_paths[i]))  # TODO 
         return res
+    '''
+    @staticmethod
+    def _attention_meta_path(x, meta_paths, att_layers, path_weights):
+        assert len(att_layers) == len(meta_paths), "the length should match"
+        res = torch.zeros(x.shape).to(x.device)
+        # TODO try to use batched matrix for meta-paths
+        #   e.g. concatenate adj of meta-path as one diagonalized matrix, and stack x
+        for i in range(len(att_layers)):  # they are not sequential, but in reduction mode
+            res += path_weights[i] * relu(att_layers[i](x, meta_paths[i]))  # TODO 
+        return res
 
     def forward(self, xv, xc, meta_paths_lit, meta_paths_cls, adj_pos, adj_neg):
         # xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.lit_path_weights)
         # xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.cls_path_weights)
         xv = fn.relu(self.lit_embedding(xv))
         xc = fn.relu(self.cls_embedding(xc))
+        '''
         xv = self._attention_meta_path(xv,
                                        meta_paths_lit, self.self_lit_attentions,
                                        self.sublayer_lit, self.lit_path_weights)
         xc = self._attention_meta_path(xc,
                                        meta_paths_cls, self.self_cls_attentions,
                                        self.sublayer_cls, self.cls_path_weights)
-        # xc = self.sublayer_cls(xc, lambda x: self._attention_meta_path(x,
-        #                                                                meta_paths_cls,
-        #                                                                self.self_cls_attentions,
-        #                                                                self.cls_path_weights))
+        '''
+        xv = relu(self.sublayer_lit(xv, (lambda x: self._attention_meta_path(x,
+                                                                       meta_paths_lit,
+                                                                       self.self_lit_attentions,
+                                                                       self.lit_path_weights))))
+        xc = relu(self.sublayer_cls(xc, (lambda x: self._attention_meta_path(x,
+                                                                       meta_paths_cls,
+                                                                       self.self_cls_attentions,
+                                                                       self.cls_path_weights))))
         xv_pos, xc_pos = self.cross_attention_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.cross_attention_neg((xv, xc), adj_neg)
 
@@ -159,8 +179,8 @@ class DecoderLayer(nn.Module, ABC):
         # xv_neg, xc_neg = self.sublayer[1]((xv, xc), lambda x: self.attn_neg(x, adj_neg))
         xv_pos, xc_pos = self.attn_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.attn_neg((xv, xc), adj_neg)
-        return self.sublayer[0](xv_pos + xv_neg, self.ff_v), \
-               self.sublayer[1](xc_pos + xc_neg, self.ff_c)
+        return self.sublayer[0](xv_pos + xv_neg, lambda x: fn.relu(self.ff_v(x))), \
+               self.sublayer[1](xc_pos + xc_neg, lambda x: fn.relu(self.ff_c(x)))
 
 
 class HGAConv(MessagePassing):
