@@ -4,7 +4,7 @@
 import time
 import torch
 
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from args import make_args
 from data import SATDataset
 from loss import LossCompute, LossMetric
@@ -101,7 +101,7 @@ def main():
     loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.log_loss, debug=True)
     accuracy_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.accuracy, debug=True)
 
-    for epoch in range(last_epoch, args.epoch_num + last_epoch):
+    for epoch in trange(last_epoch, args.epoch_num + last_epoch):
         # print('Epoch: {} Training...'.format(epoch))
         model.train(True)
         total_loss = run_epoch(train_loader, model, loss_compute, device, args, is_train=True,
