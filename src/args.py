@@ -53,6 +53,6 @@ def make_args():
     parser.add_argument('--save_root', dest='save_root', default='saved_model', type=str)
     parser.add_argument('--save_name', dest='save_name', default='check_point', type=str)
 
-    parser.set_defaults(gpu=True, dataset='RND3SAT/uf50-218', load_model=False, load_epoch=500)
+    parser.set_defaults(gpu=True, dataset='RND3SAT/uf100-430', load_model=True, load_epoch=500)
     args = parser.parse_args()
     return args

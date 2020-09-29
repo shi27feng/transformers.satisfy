@@ -3,6 +3,7 @@
 # https://docs.dgl.ai/en/0.4.x/tutorials/models/4_old_wines/7_transformer.html#task-and-the-dataset
 import time
 import torch
+import os.path as osp
 
 from tqdm import tqdm, trange
 from args import make_args
@@ -37,6 +38,7 @@ def run_epoch(data_loader,
         num_literals: tensor
     """
     # torch.autograd.set_detect_anomaly(True)
+    sat_r = []
     total_loss = 0
     start = time.time()
     bs = args.batch_size
@@ -55,18 +57,22 @@ def run_epoch(data_loader,
             loss, sm = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), gr_idx_cls[: batch.xc.size(0)], is_train)
             total_loss += loss
         if i == 0:
-            print("Sat Rate: ", 100 * (sm // 0.50001).mean().item(), "%")
+            sat = 100 * (sm // 0.50001).mean().item()
+            sat_r.append(sat)
+            print("Sat Rate: ", sat, "%")
     elapsed = time.time() - start
     ms = 'average loss' if is_train else 'accuracy '
-    print(ms +  ': {}; average time: {}'.format(total_loss / len(data_loader.dataset), elapsed / len(data_loader.dataset)))
-    
-    return total_loss
+    print(ms + ': {}; average time: {}'.format(total_loss / len(data_loader.dataset),
+                                               elapsed / len(data_loader.dataset)))
+
+    return total_loss, sat_r
     # TODO accuracy
     # print('accuracy: {}'.format(loss_compute.accuracy))
 
 
 def main():
     # torch.cuda.empty_cache()
+    global osp
     args = make_args()
     device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
     # device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -94,19 +100,22 @@ def main():
     if args.load_model:
         last_epoch = args.load_epoch
         import os.path as osp
-        last_epoch, loss = load_checkpoint(osp.join(args.save_root, args.save_name, '_' + last_epoch), model, noam_opt)
+        last_epoch, loss = load_checkpoint(osp.join(args.save_root,
+                                                    args.save_name + '_' + str(last_epoch) + '.pickle'),
+                                           model, noam_opt.optimizer)
         print("Load Model: ", last_epoch)
 
     loss_metric = LossMetric()
     loss_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.log_loss, debug=True)
     accuracy_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.accuracy, debug=True)
 
+    sat_valid = []
     for epoch in trange(last_epoch, args.epoch_num + last_epoch):
         # print('Epoch: {} Training...'.format(epoch))
         model.train(True)
-        total_loss = run_epoch(train_loader, model, loss_compute, device, args, is_train=True,
-                               num_literals=num_literals, num_clauses=num_clauses,
-                               desc="Train Epoch {}".format(epoch))
+        total_loss, _ = run_epoch(train_loader, model, loss_compute, device, args, is_train=True,
+                                  num_literals=num_literals, num_clauses=num_clauses,
+                                  desc="Train Epoch {}".format(epoch))
         print('Epoch: {} Evaluating...'.format(epoch))
         # TODO Save model
         if epoch % args.epoch_save == 0:
@@ -114,14 +123,23 @@ def main():
 
         # Validation
         model.eval()
-        total_loss = run_epoch(valid_loader, model, accuracy_compute, device, args, is_train=False,
-                               num_literals=num_literals, num_clauses=num_clauses,
-                               desc="Valid Epoch {}".format(epoch))
+        _, sat_ = run_epoch(valid_loader, model, accuracy_compute, device, args, is_train=False,
+                            num_literals=num_literals, num_clauses=num_clauses,
+                            desc="Valid Epoch {}".format(epoch))
+        sat_valid += sat_
 
     print('Testing...')
     model.eval()
-    total_loss = run_epoch(test_loader, model, accuracy_compute, device, args, is_train=False,
-                           num_literals=num_literals, num_clauses=num_clauses)
+    _, sat_test = run_epoch(test_loader, model, accuracy_compute, device, args, is_train=False,
+                            num_literals=num_literals, num_clauses=num_clauses)
+    print('average sat rate: {}; best sat rate: {}'.format(
+        torch.mean(torch.tensor(sat_valid)),
+        torch.max(torch.tensor(sat_valid))
+    ))
+
+    torch.save([sat_valid, sat_test],
+               osp.join(args.saved_model,
+                        'result_' + str(args.epoch_num + last_epoch) + '.pickle'))
 
 
 if __name__ == "__main__":
