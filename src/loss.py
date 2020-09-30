@@ -1,10 +1,9 @@
 from abc import ABC
-import time
 
 import torch
 import torch.nn as nn
-from torch_scatter import scatter
 from torch.nn.functional import mse_loss, relu
+from torch_scatter import scatter
 
 
 class AccuracyCompute(nn.Module, ABC):  # TODO add batch
@@ -48,9 +47,9 @@ class LossCompute(nn.Module, ABC):
         """
         sm = self.get_sm(xv, adj_pos, adj_neg, self.p, self.a)
         # print("XV distance: ", (xv - 0.5).square().sum() * 0.01)
-        _loss = self.metric(sm, clause_count, gr_idx_cls) 
+        _loss = self.metric(sm, clause_count, gr_idx_cls)
         if is_train:
-            _loss -= relu(10*(sm - 0.45)).sum() * 0.005
+            _loss -= relu(10 * (sm - 0.45)).sum() * 0.005
 
         if self.opt is not None and is_train:
             self.opt.optimizer.zero_grad()
@@ -72,12 +71,13 @@ class LossCompute(nn.Module, ABC):
         numerator = torch.mul(torch.cat((xv[adj_pos[1]], xn[adj_neg[1]])), xe)  # x*exp(x*p)
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
-        return torch.div(numerator, dominator) # S(MAX')
+        return torch.div(numerator, dominator)  # S(MAX')
         # return scatter(torch.cat((xv[adj_pos[1]], xn[adj_neg[1]])), idx, reduce='max')
 
     @staticmethod
     def push_to_side(x, a):  # larger a means push harder
         return 1 / (1 + torch.exp(a * (0.5 - x)))
+
 
 def flip_search(xv, xc, adj_pos, adj_neg, ori_accuracy):
     accuracy_compute = AccuracyCompute()
@@ -99,10 +99,8 @@ def flip_search(xv, xc, adj_pos, adj_neg, ori_accuracy):
                 best_lit = lit
                 best_acc = accuracy
     if best_lit is not None:
-        xv[best_lit] = 1 -  xv[best_lit]
+        xv[best_lit] = 1 - xv[best_lit]
         return best_acc
-
-
 
 
 class LossMetric():
@@ -117,8 +115,7 @@ class LossMetric():
 
     @staticmethod
     def square_loss(sm, clause_count, gr_idx_cls):
-        return (10*(0.9 - sm)).square().sum()
-
+        return (10 * (0.9 - sm)).square().sum()
 
     @staticmethod
     def accuracy(sm, clause_count, gr_idx_cls):

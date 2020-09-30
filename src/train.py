@@ -138,7 +138,7 @@ def main():
     ))
 
     torch.save([sat_valid, sat_test],
-               osp.join(args.saved_model,
+               osp.join(args.save_root,
                         'result_' + str(args.epoch_num + last_epoch) + '.pickle'))
 
 
