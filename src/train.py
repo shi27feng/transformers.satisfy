@@ -124,14 +124,14 @@ def main():
         # Validation
         model.eval()
         _, sat_ = run_epoch(valid_loader, model, accuracy_compute, device, args, is_train=False,
-                            num_literals=num_literals, num_clauses=num_clauses,
+                            num_literals=num_literals[last_train: last_valid], num_clauses=num_clauses[last_train: last_valid],
                             desc="Valid Epoch {}".format(epoch))
         sat_valid += sat_
 
     print('Testing...')
     model.eval()
     _, sat_test = run_epoch(test_loader, model, accuracy_compute, device, args, is_train=False,
-                            num_literals=num_literals, num_clauses=num_clauses)
+                            num_literals=num_literals[last_valid:], num_clauses=num_clauses[last_valid:])
     print('average sat rate: {}; best sat rate: {}'.format(
         torch.mean(torch.tensor(sat_valid)),
         torch.max(torch.tensor(sat_valid))
