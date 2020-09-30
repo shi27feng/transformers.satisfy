@@ -40,6 +40,12 @@ class SATDataset(InMemoryDataset, ABC):
                    'ssa'],
             'extract': extract_tar,
         },
+        '3k': {
+            'id': ['kcover',
+                    'kcolor',
+                    'kclique'],
+            'extract': extract_tar
+        }
     }
 
     def __init__(self, root, name, use_negative, transform=None, pre_transform=None):
