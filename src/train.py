@@ -72,7 +72,6 @@ def run_epoch(data_loader,
 
 def main():
     # torch.cuda.empty_cache()
-    global osp
     args = make_args()
     device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
     # device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -99,7 +98,6 @@ def main():
     noam_opt = get_std_opt(model, args)
     if args.load_model:
         last_epoch = args.load_epoch
-        import os.path as osp
         last_epoch, loss = load_checkpoint(osp.join(args.save_root,
                                                     args.save_name + '_' + str(last_epoch) + '.pickle'),
                                            model, noam_opt.optimizer)
