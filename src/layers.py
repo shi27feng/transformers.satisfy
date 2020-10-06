@@ -300,12 +300,12 @@ class HGAConv(MessagePassing):
                     adj[i] = self_loop_augment(num_nodes, adj[i])
 
         # propagate_type: (x: OptPairTensor, alpha: OptPairTensor)
-        xpar = (x_l, x_r) if x_r is not None else x_l
-        alphapar = (alpha_l, alpha_r)
+        _x_ = (x_l, x_r) if x_r is not None else x_l
+        _alpha_ = (alpha_l, alpha_r)
         alpha_ = (alpha_l_, alpha_r_)
         out = self.propagate(adj,
-                             x=xpar,
-                             alpha=alphapar,
+                             x=_x_,
+                             alpha=_alpha_,
                              alpha_=alpha_,
                              size=size)
 
