@@ -241,7 +241,7 @@ class HGAConv(MessagePassing):
         zeros(self.bias)
 
     @staticmethod
-    def edge_score(adj, a_l, a_r, is_cross):
+    def edge_score(adj, a_l, a_r):
         """
         Args:
             adj: adjacency matrix [2, num_edges] or (heads, [2, num_edges])
@@ -340,10 +340,10 @@ class HGAConv(MessagePassing):
 
         x = kwargs.get('x', Pr.empty)  # OptPairTensor
         alpha = kwargs.get('alpha', Pr.empty)  # PairTensor
-        score = self.edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1], is_cross=isinstance(x, Tensor))
+        score = self.edge_score(adj=adj, a_l=alpha[0], a_r=alpha[1])
         if not isinstance(x, Tensor):
             alpha_ = kwargs.get('alpha_', Pr.empty)
-            score_ = self.edge_score(adj=adj, a_l=alpha_[1], a_r=alpha_[0], is_cross=isinstance(x, Tensor))
+            score_ = self.edge_score(adj=adj, a_l=alpha_[1], a_r=alpha_[0])
             score = (score, score_)
 
         out = self.message_and_aggregate(adj, x=x, score=score)
