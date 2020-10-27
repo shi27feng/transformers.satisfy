@@ -1,6 +1,7 @@
 from abc import ABC
 
 import torch
+from einops import rearrange
 from torch.nn import Module, Embedding, Linear, ReLU, ModuleList, Sequential, GELU, LayerNorm
 from functools import partial
 import math
@@ -119,7 +120,7 @@ def causal_linear_attention(q, k, v):
 
 # inefficient causal linear attention, without cuda code,
 # for reader's reference not being used
-def causal_linear_attention_noncuda(q, k, v):
+def causal_linear_attention_non_cuda(q, k, v):
     k_cumsum = k.cumsum(dim=-2)
     context = torch.einsum('...nd,...ne->...nde', k, v)
     context = context.cumsum(dim=-3)
@@ -243,7 +244,8 @@ class SelfAttention(Module, ABC):
         self.to_out = Linear(dim, dim)
 
     def forward(self, x, mask=None):
-        b, n, _, h = *x.shape, self.heads
+        b, n, _ = x.shape
+        h = self.heads
         qkv = self.to_qkv(x).chunk(3, dim=-1)
 
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), qkv)
@@ -312,7 +314,8 @@ class PerformerLM(Module, ABC):
         self.to_logits = Linear(dim, num_tokens)
 
     def forward(self, x, **kwargs):
-        b, n, device = *x.shape, x.device
+        b, n = x.shape
+        device = x.device
         x = self.token_emb(x)
         x += self.pos_emb(torch.arange(n, device=device))
         x = self.performer(x, **kwargs)
