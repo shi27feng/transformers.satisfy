@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 from torch_sparse import spmm, transpose
 from torch_geometric.utils.num_nodes import maybe_num_nodes
+from einops import rearrange, repeat
 
 
 def batched_spmm(nzt, adj, x, m=None, n=None):
@@ -13,11 +14,11 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
         m:   int
         n:   int
     """
-    num_edges, heads = nzt.size()
+    _, heads = nzt.size()
     num_nodes, channels = x.size()
     # preparation of data
-    x_ = torch.cat(heads * [x])  # duplicate x for heads times
-    nzt_ = nzt.view(-1)
+    x_ = repeat(x, 'n c -> (h n) c', h=heads)  # duplicate x for heads times
+    nzt_ = rearrange(nzt, 'n h -> (h n)')  # nzt.view(-1)
     if isinstance(adj, Tensor):
         m = maybe_num_nodes(adj[0], m)
         n = max(num_nodes, maybe_num_nodes(adj[1], n))
@@ -30,7 +31,8 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
         offset = torch.tensor([[m], [n]])
         adj_ = torch.cat([adj[i] + offset * i for i in range(heads)], dim=1)
     out = spmm(adj_, nzt_, m * heads, n * heads, x_)
-    return out.view(-1, m, channels)  # [heads, m, channels]
+    return rearrange(out, '(h m) c -> m (h c)', h=heads)  # [m, heads * channels]
+    # return out.view(-1, m, channels)  # [heads, m, channels]
 
 
 def batched_transpose(adj, value, m=None, n=None):
