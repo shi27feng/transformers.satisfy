@@ -1,6 +1,6 @@
 # _Propositional Satisfiability Problem_ (SAT) goes neural and deep
 
-We'd like to use graph neural network to solve the SAT (more general _Constraint Satisfaction Problem_)
+We'd like to use graph neural network to solve the SAT (more general _Constraint Satisfaction Problem_) and this repo is the PyTorch implementation of paper [___Transformers Satisfy___](https://openreview.net/pdf?id=Gj9aQfQEHRS)
 
 ## General questions:
 
