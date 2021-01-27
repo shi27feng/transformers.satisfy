@@ -356,10 +356,7 @@ class HGAConv(MessagePassing):
         self._alpha = alpha
         return fn.dropout(alpha, p=self.dropout, training=self.training)
 
-    def message_and_aggregate(self,
-                              adj,
-                              x,
-                              score):
+    def message_and_aggregate(self, adj, x, score):
         """
         Args:
             adj:   Tensor or list(Tensor)
