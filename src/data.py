@@ -41,9 +41,9 @@ class SATDataset(InMemoryDataset, ABC):
             'extract': extract_tar,
         },
         '3k': {
-            'id': ['kcover',
-                    'kcolor',
-                    'kclique'],
+            'id': ['k-cover',
+                   'k-color',
+                   'k-clique'],
             'extract': extract_tar
         }
     }
