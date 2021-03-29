@@ -29,7 +29,7 @@ def make_args():
                         help='whether load_model')
     parser.add_argument('--load_epoch', dest='load_epoch', default=0, type=int,
                         help='whether load_model')
-    parser.add_argument('--batch_size', dest='batch_size', default=32,
+    parser.add_argument('--batch_size', dest='batch_size', default=16,
                         type=int)  # implemented via accumulating gradient
     parser.add_argument('--num_layers', dest='num_layers', default=2, type=int)
     parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=4, type=int)
@@ -53,6 +53,7 @@ def make_args():
     parser.add_argument('--save_root', dest='save_root', default='saved_model', type=str)
     parser.add_argument('--save_name', dest='save_name', default='check_point', type=str)
 
-    parser.set_defaults(gpu=True, dataset='RND3SAT/uf100-430', load_model=True, load_epoch=500)
+    parser.set_defaults(gpu=True, dataset='RND3SAT/uf100-430')
+    # 'RND3SAT/uf200-860', batch_size=16)  # , load_model=True, load_epoch=500)
     args = parser.parse_args()
     return args

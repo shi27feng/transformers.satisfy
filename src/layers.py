@@ -357,10 +357,7 @@ class HGAConv(MessagePassing):
         self._alpha = alpha
         return fn.dropout(alpha, p=self.dropout, training=self.training)
 
-    def message_and_aggregate(self,
-                              adj,
-                              x,
-                              score):
+    def message_and_aggregate(self, adj, x, score):
         """
         Args:
             adj:   Tensor or list(Tensor)
@@ -415,9 +412,9 @@ if __name__ == "__main__":
 
     args = make_args()
 
-    from data import SATDataset
+    from data import SatDataset
 
-    ds = SATDataset('dataset', 'RND3SAT/uf50-218', False)
+    ds = SatDataset('dataset', 'RND3SAT/uf50-218', False)
     last_trn, last_val = int(len(ds)), int(len(ds))
     train_ds = ds[: last_trn]
     valid_ds = ds[last_trn: last_val]

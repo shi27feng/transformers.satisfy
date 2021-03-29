@@ -5,7 +5,7 @@ import torch
 from torch_geometric.data import DataLoader
 
 from args import make_args
-from data import SATDataset
+from data import SatDataset
 from loss import LossCompute, LossMetric
 from models import make_model
 from optimizer import get_std_opt
@@ -20,7 +20,7 @@ def main():
     # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # download and save the dataset
-    dataset = SATDataset(args.root, args.dataset, use_negative=False)
+    dataset = SatDataset(args.root, args.dataset, use_negative=False)
     dataset, perm = dataset.shuffle(return_perm=True)
     num_clauses = dataset.num_clauses[perm]
     num_literals = dataset.num_literals[perm]
