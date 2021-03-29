@@ -15,6 +15,7 @@ from torch_geometric.utils import softmax
 
 from linalg import batched_spmm, batched_transpose
 from utils import self_loop_augment
+from einops import rearrange, reduce
 
 
 def clones(module, k):
@@ -248,8 +249,8 @@ class HGAConv(MessagePassing):
             a_l: Tensor           [num_nodes, heads]
             a_r: Tensor           [num_nodes, heads]
         """
-        if isinstance(adj, Tensor):
-            return a_l[adj[1], :] + a_r[adj[0], :]  # [num_edges, heads]
+        if isinstance(adj, Tensor):  # [num_edges, heads]
+            return a_l[adj[1], :] + a_r[adj[0], :] 
         a = []
         for i in range(len(adj)):
             a[i] = a_l[adj[i][1], i] + a_r[adj[i][0], i]
@@ -312,17 +313,19 @@ class HGAConv(MessagePassing):
         alpha = self._alpha
         self._alpha = None
 
-        if self.concat:  # TODO if 'out' is Tuple(Tensor, Tensor)
+        # if isinstance(out, Tensor):  # reshape here is equivalent to concatenation
+        #     out = rearrange(out, '(h n) c -> n (h c)', h=h)
+        # else:
+        #     out = (rearrange(out[0], '(h n) c -> n (h c)', h=h),
+        #            rearrange(out[1], '(h n) c -> n (h c)', h=h))
+
+        if not self.concat:  # calculate mean
             if isinstance(out, Tensor):
-                out = out.reshape(-1, self.heads * self.out_channels)
+                out = reduce(out, 'n (h c) -> n c', 'mean', h=h)
             else:
-                out = (out[0].reshape(-1, self.heads * self.out_channels),
-                       out[1].reshape(-1, self.heads * self.out_channels))
-        else:
-            if isinstance(out, Tensor):
-                out = out.mean(dim=1)
-            else:
-                out = (out[0].mean(dim=1), out[1].mean(dim=1))
+                out = (reduce(out[0], 'n (h c) -> n c', 'mean', h=h),
+                       reduce(out[0], 'n (h c) -> n c', 'mean', h=h))
+
         if self.bias is not None:
             if isinstance(out, Tensor):
                 out += self.bias
@@ -345,9 +348,7 @@ class HGAConv(MessagePassing):
             alpha_ = kwargs.get('alpha_', Pr.empty)
             score_ = self.edge_score(adj=adj, a_l=alpha_[1], a_r=alpha_[0])
             score = (score, score_)
-
         out = self.message_and_aggregate(adj, x=x, score=score)
-
         return self.update(out)
 
     def _attention(self, adj, score):  # score: [num_edges, heads]
@@ -375,6 +376,7 @@ class HGAConv(MessagePassing):
             n = x_l.size(0)
             out_l = torch.zeros((m, c2, self.heads))
 
+        alpha_ = None
         if isinstance(adj, Tensor):
             if isinstance(score, Tensor):
                 alpha = self._attention(adj, score)  # [num_edges, heads]
@@ -387,13 +389,15 @@ class HGAConv(MessagePassing):
             for i in range(self.heads):
                 alpha.append(self._attention(adj[i], score[i]))
 
-        out_ = batched_spmm(alpha, adj, x_l, m, n)
+        out_ = batched_spmm(alpha, adj, x_l, m, n)  # [m, (h c)], n reduced
         if x_r is None:
-            return out_.permute(1, 0, 2)
+            return out_  # [num_nodes, heads, channels]
+            # return out_.permute(1, 0, 2)  # [heads, num_nodes, channels]
         else:
             adj, alpha_ = batched_transpose(adj, alpha_)
-            out_l = batched_spmm(alpha_, adj, x_r, n, m)
-            return out_l.permute(1, 0, 2), out_.permute(1, 0, 2)
+            out_l = batched_spmm(alpha_, adj, x_r, n, m)  # [n, (h c)], m reduced
+            return out_l, out_
+            # return out_l.permute(1, 0, 2), out_.permute(1, 0, 2)
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
