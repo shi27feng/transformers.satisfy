@@ -9,27 +9,26 @@ Dataset are automatically downloaded from [SATLIB](https://www.cs.ubc.ca/~hoos/S
 
 ### Example
 
-```python
+
 # How to use SatDataset
+```shell
 from data import SatDataset
 
 ds = SATDataset('dataset', 'RND3SAT/uf50-218', use_negative=True)
 
-Satisfied
-Cases...
+Satisfied cases...
 Downloading
-https: // www.cs.ubc.ca / ~hoos / SATLIB / Benchmarks / SAT / RND3SAT / uf50 - 218.
+https://www.cs.ubc.ca/~hoos/SATLIB/Benchmarks/SAT/RND3SAT/uf50-218.
 tar.gz
 Extracting
-dataset / raw / uf50 - 218.
+dataset/raw/uf50-218.
 tar.gz
-Unsatisfied
-Cases...
+Unsatisfied cases...
 Downloading
-https: // www.cs.ubc.ca / ~hoos / SATLIB / Benchmarks / SAT / RND3SAT / uuf50 - 218.
+https://www.cs.ubc.ca/~hoos/SATLIB/Benchmarks/SAT/RND3SAT/uuf50-218.
 tar.gz
 Extracting
-dataset / raw / uuf50 - 218.
+dataset/raw/uuf50-218.
 tar.gz
 Processing...
 processing
