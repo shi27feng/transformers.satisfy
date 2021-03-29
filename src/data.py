@@ -13,8 +13,8 @@ from torch_geometric.data import (InMemoryDataset, Data, download_url,
                                   extract_zip, extract_tar)
 
 
-class SATDataset(InMemoryDataset, ABC):
-    """SATDataset
+class SatDataset(InMemoryDataset, ABC):
+    """SatDataset
     source:
         1. Uniform Random-3-SAT, phase transition region, unforced filtered
         2. DIMACS Benchmark Instances
@@ -54,7 +54,7 @@ class SATDataset(InMemoryDataset, ABC):
         assert self.name.split('/')[0] in self.datasets.keys()
         if not osp.exists(osp.join(root, "raw")):
             os.mkdir(osp.join(root, "raw"))
-        super(SATDataset, self).__init__(root, transform, pre_transform)
+        super(SatDataset, self).__init__(root, transform, pre_transform)
         path = osp.join(self.processed_dir, self.processed_file_names)
         self.data, self.sat, self.num_literals, self.num_clauses = torch.load(path)
 
