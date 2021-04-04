@@ -45,7 +45,7 @@ class LossCompute(nn.Module, ABC):
         Desc:
             adj[0] is an array of clause indices, adj[1] is an array of variables
         """
-        sm = self.get_sm(xv, adj_pos, adj_neg, self.p, self.a)
+        sm = self._sm(xv, adj_pos, adj_neg, self.p, self.a)
         # print("XV distance: ", (xv - 0.5).square().sum() * 0.01)
         _loss = self.metric(sm, clause_count, gr_idx_cls)
         if is_train:
@@ -62,7 +62,7 @@ class LossCompute(nn.Module, ABC):
         return _loss
 
     @staticmethod
-    def get_sm(xv, adj_pos, adj_neg, p, a):
+    def _sm(xv, adj_pos, adj_neg, p, a):
         xv = xv.view(-1)
         # xv = LossCompute.push_to_side(xv, a)
         xn = 1 - xv
@@ -79,31 +79,31 @@ class LossCompute(nn.Module, ABC):
         return 1 / (1 + torch.exp(a * (0.5 - x)))
 
 
-def flip_search(xv, xc, adj_pos, adj_neg, ori_accuracy):
-    accuracy_compute = AccuracyCompute()
-    index = torch.range(1, xc.size(0))[xc <= 0.5]
-    best_lit = None
-    best_acc = None
-    visited_lit = []
-    for cls in index:
-        pos_flip = adj_pos[1][adj_pos[0] == cls]
-        neg_flip = adj_neg[1][adj_neg[0] == cls]
-        for lit in torch.cat((pos_flip, neg_flip)):
-            if lit in visited_lit:
-                continue
-            visited_lit.append(lit)
-            xv_ = xv.clone()
-            xv_[lit] = 1 - xv_[lit]
-            accuracy = accuracy_compute(xv_, adj_pos, adj_neg)
-            if accuracy > ori_accuracy:
-                best_lit = lit
-                best_acc = accuracy
-    if best_lit is not None:
-        xv[best_lit] = 1 - xv[best_lit]
-        return best_acc
+# def flip_search(xv, xc, adj_pos, adj_neg, ori_accuracy):
+#     accuracy_compute = AccuracyCompute()
+#     index = torch.range(1, xc.size(0))[xc <= 0.5]
+#     best_lit = None
+#     best_acc = None
+#     visited_lit = []
+#     for cls in index:
+#         pos_flip = adj_pos[1][adj_pos[0] == cls]
+#         neg_flip = adj_neg[1][adj_neg[0] == cls]
+#         for lit in torch.cat((pos_flip, neg_flip)):
+#             if lit in visited_lit:
+#                 continue
+#             visited_lit.append(lit)
+#             xv_ = xv.clone()
+#             xv_[lit] = 1 - xv_[lit]
+#             accuracy = accuracy_compute(xv_, adj_pos, adj_neg)
+#             if accuracy > ori_accuracy:
+#                 best_lit = lit
+#                 best_acc = accuracy
+#     if best_lit is not None:
+#         xv[best_lit] = 1 - xv[best_lit]
+#         return best_acc
 
 
-class LossMetric():
+class LossMetric:
     @staticmethod
     def log_loss(sm, clause_count, gr_idx_cls):
         log_smooth = torch.log(sm + 0.01)
@@ -131,8 +131,8 @@ def negation(xi):
 
 
 def smooth_max(x, p):  # Approx Max If p is large, but will produce inf for p too large
-    exponential = torch.exp(p * x)
-    return torch.dot(x, exponential) / torch.sum(exponential)
+    e = torch.exp(p * x)
+    return torch.dot(x, e) / torch.sum(e)
 
 
 def smooth_max_test():

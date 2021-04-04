@@ -24,24 +24,6 @@ def clones(module, k):
     )
 
 
-'''
-class LayerNorm(nn.Module, ABC):
-    """Construct a layer-norm module (See citation for details)."""
-
-    def __init__(self, in_channels, eps=1e-6):
-        super(LayerNorm, self).__init__()
-        self.alpha = nn.Parameter(torch.ones(in_channels))
-        self.beta = nn.Parameter(torch.zeros(in_channels))
-        self.eps = eps
-
-    def forward(self, x):
-        mean = x.mean(-1, keepdim=True)
-        std = x.std(-1, keepdim=True)
-        print()
-        return self.alpha * (x - mean) / (std + self.eps) + self.beta
-'''
-
-
 class SublayerConnection(nn.Module, ABC):
     """
     A residual connection followed by a layer norm.

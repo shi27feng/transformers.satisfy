@@ -14,10 +14,12 @@ class BipartiteData(Data):
         self.edge_index_neg = neg_adj
         self.xv = xv  # variables
         self.xc = xc  # clauses
+
         self.edge_index_lit_pp = None
         self.edge_index_lit_pn = None
         self.edge_index_lit_np = None
         self.edge_index_lit_nn = None
+
         self.edge_index_cls_pp = None
         self.edge_index_cls_pn = None
         self.edge_index_cls_np = None
@@ -29,6 +31,7 @@ class BipartiteData(Data):
         self.edge_index_lit_pn = self.edge_index_lit_pn.to("cpu")
         self.edge_index_lit_np = self.edge_index_lit_np.to("cpu")
         self.edge_index_lit_nn = self.edge_index_lit_nn.to("cpu")
+
         self.edge_index_cls_pp = self.edge_index_cls_pp.to("cpu")
         self.edge_index_cls_pn = self.edge_index_cls_pn.to("cpu")
         self.edge_index_cls_np = self.edge_index_cls_np.to("cpu")
