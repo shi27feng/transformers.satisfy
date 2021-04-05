@@ -139,7 +139,7 @@ class CNFParser:
             elif line.startswith('p cnf'):
                 tokens = line.split()
                 self.num_variables, n_remaining_clauses = int(tokens[2]), \
-                                                          min(n_remaining_clauses, int(tokens[3]))
+                    min(n_remaining_clauses, int(tokens[3]))
                 self.num_clauses = n_remaining_clauses
             elif clause_index < n_remaining_clauses:
                 for literal in line.split()[:-1]:
