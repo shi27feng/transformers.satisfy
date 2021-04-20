@@ -202,13 +202,13 @@ class HGAConv(MessagePassing):
             self.lin_l = Linear(in_channels[0], out_channels, False)
             self.lin_r = Linear(in_channels[1], out_channels, False)
 
-        self.att_l = Parameter(torch.Tensor(out_channels, heads))
-        self.att_r = Parameter(torch.Tensor(out_channels, heads))
+        self.att_l = Parameter(torch.ones(out_channels, heads, dtype=torch.float))
+        self.att_r = Parameter(torch.ones(out_channels, heads, dtype=torch.float))
 
         if bias and concat:
-            self.bias = Parameter(torch.Tensor(out_channels * heads))
+            self.bias = Parameter(torch.ones(out_channels * heads, dtype=torch.float))
         elif bias and not concat:
-            self.bias = Parameter(torch.Tensor(out_channels))
+            self.bias = Parameter(torch.ones(out_channels, dtype=torch.float))
         else:
             self.register_parameter('bias', None)
 
