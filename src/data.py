@@ -7,8 +7,8 @@ from time import sleep
 
 import torch
 
-from .cnf import CNFParser
-from .utils import move_to_root
+from cnf import CNFParser
+from utils import move_to_root
 from torch_geometric.data import (InMemoryDataset, Data, download_url,
                                   extract_zip, extract_tar)
 
