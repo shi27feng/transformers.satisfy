@@ -13,7 +13,7 @@ from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
 from torch_geometric.utils import softmax
 
-from linalg import batched_spmm, batched_transpose
+from linalg import spmm_, transpose_
 from utils import self_loop_augment
 from einops import rearrange, reduce
 
@@ -295,18 +295,17 @@ class HGAConv(MessagePassing):
         alpha = self._alpha
         self._alpha = None
 
-        # if isinstance(out, Tensor):  # reshape here is equivalent to concatenation
-        #     out = rearrange(out, '(h n) c -> n (h c)', h=h)
-        # else:
-        #     out = (rearrange(out[0], '(h n) c -> n (h c)', h=h),
-        #            rearrange(out[1], '(h n) c -> n (h c)', h=h))
-
-        if not self.concat:  # calculate mean
+        if self.concat:  # TODO if 'out' is Tuple(Tensor, Tensor)
             if isinstance(out, Tensor):
-                out = reduce(out, 'n (h c) -> n c', 'mean', h=h)
+                out = out.reshape(-1, self.heads * self.out_channels)
             else:
-                out = (reduce(out[0], 'n (h c) -> n c', 'mean', h=h),
-                       reduce(out[0], 'n (h c) -> n c', 'mean', h=h))
+                out = (out[0].reshape(-1, self.heads * self.out_channels),
+                       out[1].reshape(-1, self.heads * self.out_channels))
+        else:
+            if isinstance(out, Tensor):
+                out = out.mean(dim=1)
+            else:
+                out = (out[0].mean(dim=1), out[1].mean(dim=1))
 
         if self.bias is not None:
             if isinstance(out, Tensor):
@@ -371,13 +370,13 @@ class HGAConv(MessagePassing):
             for i in range(self.heads):
                 alpha.append(self._attention(adj[i], score[i]))
 
-        out_ = batched_spmm(alpha, adj, x_l, m, n)  # [m, (h c)], n reduced
+        out_ = spmm_(adj, alpha, m, n, x_l, dim=-2)  # [m, (h c)], n reduced
         if x_r is None:
             return out_  # [num_nodes, heads, channels]
             # return out_.permute(1, 0, 2)  # [heads, num_nodes, channels]
         else:
-            adj, alpha_ = batched_transpose(adj, alpha_)
-            out_l = batched_spmm(alpha_, adj, x_r, n, m)  # [n, (h c)], m reduced
+            adj, alpha_ = transpose_(adj, alpha_)
+            out_l = spmm_(adj, alpha_, n, m, x_r, dim=-2)  # [n, (h c)], m reduced
             return out_l, out_
             # return out_l.permute(1, 0, 2), out_.permute(1, 0, 2)
 

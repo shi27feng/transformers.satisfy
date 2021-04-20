@@ -8,7 +8,7 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 from einops import rearrange, repeat
 
 
-def _spmm(indices, nz, m, n, d):
+def spmm_(indices, nz, m, n, dense, dim=-3):
     """Sparse matrix multiplication, it supports tensor
     with dimension size more than 2, and the code is inspired by:
     "PyTorch Sparse"[https://tinyurl.com/ycn2nkdr]
@@ -19,11 +19,11 @@ def _spmm(indices, nz, m, n, d):
         n (int): The second dimension of corresponding dense matrix.
         d (:class:`Tensor`): tensor of dense matrix
     """
-    assert n == d.shape[-2]
+    assert n == dense.shape[dim]
     rows, cols = indices
-    d = d if d.dim() > 1 else d.unsqueeze(-1)
-    out = d[..., cols, :] * nz.unsqueeze(-1)
-    return scatter_add(out, rows, dim=-2, dim_size=m)
+    dense = dense if dense.dim() > 1 else dense.unsqueeze(-1)
+    out = dense.index_select(dim, cols) * nz.unsqueeze(-1)
+    return scatter_add(out, rows, dim=dim, dim_size=m)
 
 
 def softmax_(src: Tensor,
@@ -58,24 +58,6 @@ def softmax_(src: Tensor,
     return out / (out_sum + 1e-16)
 
 
-def spmm_(indices, nz, m, n, dense, dim=-3):
-    """Sparse matrix multiplication, it supports tensor
-    with dimension size more than 2, and the code is inspired by:
-    "PyTorch Sparse"[https://tinyurl.com/ycn2nkdr]
-    :argument
-        indices (:class: `LongTensor`): tensor of indices of sparse matrix.
-        nz (:class: `Tensor`): tensor of nonzero of sparse matrix.
-        m (int): The first dimension of corresponding dense matrix.
-        n (int): The second dimension of corresponding dense matrix.
-        d (:class:`Tensor`): tensor of dense matrix
-    """
-    assert n == dense.shape[dim]
-    rows, cols = indices
-    dense = dense if dense.dim() > 1 else dense.unsqueeze(-1)
-    out = dense.index_select(dim, cols) * nz.unsqueeze(-1)
-    return scatter_add(out, rows, dim=dim, dim_size=m)
-
-
 def batched_spmm(nzt, adj, x, m=None, n=None):
     """
     Args:
@@ -106,8 +88,8 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
     return spmm(adj_, nzt_, heads * m, heads * n, x_)
 
 
-def batched_transpose(adj, value, m=None, n=None):
-    """
+def transpose_(adj, value, m=None, n=None):
+    """ Batched transpose for multiple graph
     Args:
         adj: Tensor or list of Tensor
         value: Tensor [num_edges, ]
