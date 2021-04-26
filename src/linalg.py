@@ -3,7 +3,7 @@ from typing import Optional
 import torch
 from torch import Tensor
 from torch_scatter import scatter_add, scatter
-from torch_sparse import spmm, transpose
+from torch_sparse import transpose
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 from einops import rearrange, repeat
 
@@ -85,7 +85,7 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
         offset = torch.tensor([[m], [n]])
         adj_ = torch.cat([adj[i] + offset * i for i in range(heads)], dim=1)
 
-    return spmm(adj_, nzt_, heads * m, heads * n, x_)
+    return spmm_(adj_, nzt_, heads * m, heads * n, x_)
 
 
 def transpose_(adj, value, m=None, n=None):

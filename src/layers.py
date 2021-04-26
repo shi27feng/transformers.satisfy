@@ -164,7 +164,7 @@ class DecoderLayer(nn.Module, ABC):
         xv_pos, xc_pos = self.attn_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.attn_neg((xv, xc), adj_neg)
         return self.sublayer[0](xv_pos + xv_neg, lambda x: fn.relu(self.ff_v(x))), \
-               self.sublayer[1](xc_pos + xc_neg, lambda x: fn.relu(self.ff_c(x)))
+            self.sublayer[1](xc_pos + xc_neg, lambda x: fn.relu(self.ff_c(x)))
 
 
 class HGAConv(MessagePassing):
@@ -283,12 +283,12 @@ class HGAConv(MessagePassing):
                     adj[i] = self_loop_augment(num_nodes, adj[i])
 
         # propagate_type: (x: OptPairTensor, alpha: OptPairTensor)
-        _x_ = (x_l, x_r) if x_r is not None else x_l
-        _alpha_ = (alpha_l, alpha_r)
+        x_ = (x_l, x_r) if x_r is not None else x_l
+        alpha = (alpha_l, alpha_r)
         alpha_ = (alpha_l_, alpha_r_)
         out = self.propagate(adj,
-                             x=_x_,
-                             alpha=_alpha_,
+                             x=x_,
+                             alpha=alpha,
                              alpha_=alpha_,
                              size=size)
 
@@ -350,7 +350,7 @@ class HGAConv(MessagePassing):
         n, m = 0, 0
         if isinstance(x, Tensor):
             x_l = x
-            n = m = x_l.size(0)
+            n = m = x_l.shape[0]
         else:
             x_l, x_r = x[0], x[1]
             (m, c2) = x_r.size()

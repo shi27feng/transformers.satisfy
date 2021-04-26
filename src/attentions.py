@@ -69,29 +69,12 @@ class SparseAttention(nn.Module):
 
 
 class AddNorm(nn.Module):
-    def __init__(self, normalized_shape, beta, dropout, heads, use_layer_norm=True, **kwargs):
+    def __init__(self, normalized_shape, dropout, **kwargs):
         super(AddNorm, self).__init__(**kwargs)
         self.dropout = nn.Dropout(dropout)
-        if use_layer_norm:
-            self.ln = nn.LayerNorm(normalized_shape, elementwise_affine=True)
-        else:
-            self.ln = MaskPowerNorm(normalized_shape, group_num=heads, warmup_iters=1671 * 3)
-        self.beta = beta
-        if self.beta:
-            self.lin_beta = nn.Linear(3 * normalized_shape, 1, bias=False)
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        # self.ln.reset_parameters()
-        if self.beta:
-            self.lin_beta.reset_parameters()
+        self.ln = nn.LayerNorm(normalized_shape)
 
     def forward(self, x, y):
-        if self.beta:
-            b = self.lin_beta(torch.cat([y, x, y - x], dim=-1))
-            b = b.sigmoid()
-            return self.ln(b * x + (1 - b) * self.dropout(y))
-
         return self.ln(self.dropout(y) + x)
 
 
