@@ -15,15 +15,8 @@ class Encoder(nn.Module, ABC):
         self.cached_adj = None
         self.activation = relu if args.activation == 'relu' else None
         self.device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
-        self.cached_cls_pos_pos = None
-        self.cached_cls_pos_neg = None
-        self.cached_cls_neg_pos = None
-        self.cached_cls_neg_neg = None
-
-        self.cached_lit_pos_pos = None
-        self.cached_lit_pos_neg = None
-        self.cached_lit_neg_pos = None
-        self.cached_lit_neg_neg = None
+        self.cached_cls_p_p = self.cached_cls_p_n = self.cached_cls_n_p = self.cached_cls_n_n = None
+        self.cached_lit_p_p = self.cached_lit_p_n = self.cached_lit_n_p = self.cached_lit_n_n = None
 
         channels = [int(n) for n in args.encoder_channels.split(',')]
         self.layers = nn.ModuleList([
@@ -45,18 +38,18 @@ class Encoder(nn.Module, ABC):
         meta paths are only calculated once
         """
 
-        meta_paths_lit = [graph.edge_index_lit_pp,  # $$A \times A^T$$
-                          graph.edge_index_lit_pn,
-                          graph.edge_index_lit_np,
-                          graph.edge_index_lit_nn]
-        meta_paths_cls = [graph.edge_index_cls_pp,  # $$A^T \times A$$
-                          graph.edge_index_cls_pn,
-                          graph.edge_index_cls_np,
-                          graph.edge_index_cls_nn]
+        meta_paths_lit = [graph.edges_lit_pp,  # $$A \times A^T$$
+                          graph.edges_lit_pn,
+                          graph.edges_lit_np,
+                          graph.edges_lit_nn]
+        meta_paths_cls = [graph.edges_cls_pp,  # $$A^T \times A$$
+                          graph.edges_cls_pn,
+                          graph.edges_cls_np,
+                          graph.edges_cls_nn]
         for layer in self.layers:
             xv, xc = layer(xv, xc,
                            meta_paths_lit, meta_paths_cls,
-                           graph.edge_index_pos, graph.edge_index_neg)
+                           graph.edges_pos, graph.edges_neg)
             if self.activation is not None:
                 xv, xc = self.activation(xv), self.activation(xc)
 
@@ -83,7 +76,7 @@ class Decoder(nn.Module, ABC):
 
     def forward(self, xv, xc, graph):
         for layer in self.layers:
-            xv, xc = layer(xv, xc, graph.edge_index_pos, graph.edge_index_neg)
+            xv, xc = layer(xv, xc, graph.edges_pos, graph.edges_neg)
             if self.activation is not None:
                 xv, xc = self.activation(xv), self.activation(xc)
 

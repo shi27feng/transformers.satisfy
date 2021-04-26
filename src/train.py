@@ -49,10 +49,10 @@ def run_epoch(data_loader,
         num_lit = num_literals[i * bs: (i + 1) * bs]
         num_cls = num_clauses[i * bs: (i + 1) * bs]
         # model.encoder.reset()
-        gr_idx_lit = torch.cat([torch.tensor([i] * num_lit[i]) for i in range(num_lit.size(0))]).to(device)
+        # gr_idx_lit = torch.cat([torch.tensor([i] * num_lit[i]) for i in range(num_lit.size(0))]).to(device)
         gr_idx_cls = torch.cat([torch.tensor([i] * num_cls[i]) for i in range(num_cls.size(0))]).to(device)
         with torch.set_grad_enabled(is_train):
-            adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
+            adj_pos, adj_neg = batch.edges_pos, batch.edges_neg
             xv = model(batch, args)
             loss, sm = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), gr_idx_cls[: batch.xc.size(0)], is_train)
             total_loss += loss

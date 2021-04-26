@@ -11,20 +11,13 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 class BipartiteData(Data):
     def __init__(self, pos_adj, neg_adj, xv, xc):
         super(BipartiteData, self).__init__()
-        self.edge_index_pos = pos_adj
-        self.edge_index_neg = neg_adj
+        self.edges_pos = pos_adj
+        self.edges_neg = neg_adj
         self.xv = xv  # variables
         self.xc = xc  # clauses
 
-        self.edge_index_lit_pp = None
-        self.edge_index_lit_pn = None
-        self.edge_index_lit_np = None
-        self.edge_index_lit_nn = None
-
-        self.edge_index_cls_pp = None
-        self.edge_index_cls_pn = None
-        self.edge_index_cls_np = None
-        self.edge_index_cls_nn = None
+        self.edges_lit_pp = self.edges_lit_pn = self.edges_lit_np = self.edges_lit_nn = None
+        self.edges_cls_pp = self.edges_cls_pn = self.edges_cls_np = self.edges_cls_nn = None
 
         self._meta_paths_(pos_adj, neg_adj)
         self._put_back_cpu()
@@ -49,22 +42,22 @@ class BipartiteData(Data):
         adj_pos_t, _ = transpose(adj_pos, val_pos, m, n)
         adj_neg_t, _ = transpose(adj_neg, val_neg, m, n)
 
-        self.edge_index_cls_pp, self.edge_index_cls_pn, self.edge_index_cls_np, self.edge_index_cls_nn = \
+        self.edges_cls_pp, self.edges_cls_pn, self.edges_cls_np, self.edges_cls_nn = \
             self._cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n)
 
-        self.edge_index_lit_pp, self.edge_index_lit_pn, self.edge_index_lit_np, self.edge_index_lit_nn = \
+        self.edges_lit_pp, self.edges_lit_pn, self.edges_lit_np, self.edges_lit_nn = \
             self._cross_product(adj_pos_t, adj_pos, adj_neg_t, adj_neg, val_pos, val_neg, n, m)
 
     def _put_back_cpu(self):
-        self.edge_index_lit_pp = self.edge_index_lit_pp.to("cpu")
-        self.edge_index_lit_pn = self.edge_index_lit_pn.to("cpu")
-        self.edge_index_lit_np = self.edge_index_lit_np.to("cpu")
-        self.edge_index_lit_nn = self.edge_index_lit_nn.to("cpu")
+        self.edges_lit_pp = self.edges_lit_pp.to("cpu")
+        self.edges_lit_pn = self.edges_lit_pn.to("cpu")
+        self.edges_lit_np = self.edges_lit_np.to("cpu")
+        self.edges_lit_nn = self.edges_lit_nn.to("cpu")
 
-        self.edge_index_cls_pp = self.edge_index_cls_pp.to("cpu")
-        self.edge_index_cls_pn = self.edge_index_cls_pn.to("cpu")
-        self.edge_index_cls_np = self.edge_index_cls_np.to("cpu")
-        self.edge_index_cls_nn = self.edge_index_cls_nn.to("cpu")
+        self.edges_cls_pp = self.edges_cls_pp.to("cpu")
+        self.edges_cls_pn = self.edges_cls_pn.to("cpu")
+        self.edges_cls_np = self.edges_cls_np.to("cpu")
+        self.edges_cls_nn = self.edges_cls_nn.to("cpu")
 
     def __inc__(self, key, value):
         if bool(re.search('(pos|neg)', key)):
