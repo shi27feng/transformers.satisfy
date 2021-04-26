@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 import torch
@@ -26,29 +27,17 @@ class BipartiteData(Data):
         self.edge_index_cls_nn = None
 
         self._meta_paths_(pos_adj, neg_adj)
-
-        self.edge_index_lit_pp = self.edge_index_lit_pp.to("cpu")
-        self.edge_index_lit_pn = self.edge_index_lit_pn.to("cpu")
-        self.edge_index_lit_np = self.edge_index_lit_np.to("cpu")
-        self.edge_index_lit_nn = self.edge_index_lit_nn.to("cpu")
-
-        self.edge_index_cls_pp = self.edge_index_cls_pp.to("cpu")
-        self.edge_index_cls_pn = self.edge_index_cls_pn.to("cpu")
-        self.edge_index_cls_np = self.edge_index_cls_np.to("cpu")
-        self.edge_index_cls_nn = self.edge_index_cls_nn.to("cpu")
+        self._put_back_cpu()
 
     @staticmethod
     def _cross_product(adj_p, adj_p_t, adj_n, adj_n_t, val_p, val_n, m, n):
         # cross product: $A \times A^T$
-        adj1, _ = spspmm(adj_p, val_p, adj_p_t, val_p, m, n, m)
-        adj2, _ = spspmm(adj_p, val_p, adj_n_t, val_n, m, n, m)
-        adj3, _ = spspmm(adj_n, val_n, adj_p_t, val_p, m, n, m)
-        adj4, _ = spspmm(adj_n, val_n, adj_n_t, val_n, m, n, m)
-        return adj1, adj2, adj3, adj4
+        return spspmm(adj_p, val_p, adj_p_t, val_p, m, n, m)[0], \
+               spspmm(adj_p, val_p, adj_n_t, val_n, m, n, m)[0], \
+               spspmm(adj_n, val_n, adj_p_t, val_p, m, n, m)[0], \
+               spspmm(adj_n, val_n, adj_n_t, val_n, m, n, m)[0]
 
     def _meta_paths_(self, adj_pos, adj_neg):
-        # if self.edge_index_adj is not None:
-        #     adj_pos, adj_neg = self.edge_index_adj
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         adj_pos = adj_pos.to(device)
         adj_neg = adj_neg.to(device)
@@ -66,12 +55,23 @@ class BipartiteData(Data):
         self.edge_index_lit_pp, self.edge_index_lit_pn, self.edge_index_lit_np, self.edge_index_lit_nn = \
             self._cross_product(adj_pos_t, adj_pos, adj_neg_t, adj_neg, val_pos, val_neg, n, m)
 
+    def _put_back_cpu(self):
+        self.edge_index_lit_pp = self.edge_index_lit_pp.to("cpu")
+        self.edge_index_lit_pn = self.edge_index_lit_pn.to("cpu")
+        self.edge_index_lit_np = self.edge_index_lit_np.to("cpu")
+        self.edge_index_lit_nn = self.edge_index_lit_nn.to("cpu")
+
+        self.edge_index_cls_pp = self.edge_index_cls_pp.to("cpu")
+        self.edge_index_cls_pn = self.edge_index_cls_pn.to("cpu")
+        self.edge_index_cls_np = self.edge_index_cls_np.to("cpu")
+        self.edge_index_cls_nn = self.edge_index_cls_nn.to("cpu")
+
     def __inc__(self, key, value):
-        if key in ['edge_index_pos', 'edge_index_neg']:
+        if bool(re.search('(pos|neg)', key)):
             return torch.tensor([[self.xc.size(0)], [self.xv.size(0)]])
-        elif key in ['edge_index_lit_pp', 'edge_index_lit_pn', 'edge_index_lit_np', 'edge_index_lit_nn']:
+        elif bool(re.search('lit', key)):
             return torch.tensor([[self.xv.size(0)], [self.xv.size(0)]])
-        elif key in ['edge_index_cls_pp', 'edge_index_cls_pn', 'edge_index_cls_np', 'edge_index_cls_nn']:
+        elif bool(re.search('cls', key)):
             return torch.tensor([[self.xc.size(0)], [self.xc.size(0)]])
         else:
             return super(BipartiteData, self).__inc__(key, value)

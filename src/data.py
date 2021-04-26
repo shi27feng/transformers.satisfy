@@ -70,7 +70,7 @@ class SatDataset(InMemoryDataset, ABC):
     def num_node_features(self):
         r"""Returns the number of features per node in the dataset."""
         return self.data[0].xv.num_node_features, \
-               self.data[0].xc.num_node_features
+            self.data[0].xc.num_node_features
 
     def download(self):
         r"""Downloads the dataset to the :obj:`self.raw_dir` folder."""

@@ -106,18 +106,9 @@ class EncoderLayer(nn.Module, ABC):
         return res
 
     def forward(self, xv, xc, meta_paths_lit, meta_paths_cls, adj_pos, adj_neg):
-        # xv = self._attention_meta_path(xv, meta_paths_lit, self.self_lit_attentions, self.lit_path_weights)
-        # xc = self._attention_meta_path(xc, meta_paths_cls, self.self_cls_attentions, self.cls_path_weights)
         xv = fn.relu(self.lit_embedding(xv))
         xc = fn.relu(self.cls_embedding(xc))
-        '''
-        xv = self._attention_meta_path(xv,
-                                       meta_paths_lit, self.self_lit_attentions,
-                                       self.sublayer_lit, self.lit_path_weights)
-        xc = self._attention_meta_path(xc,
-                                       meta_paths_cls, self.self_cls_attentions,
-                                       self.sublayer_cls, self.cls_path_weights)
-        '''
+
         xv = relu(self.sublayer_lit(xv, (lambda x: self._attention_meta_path(x,
                                                                              meta_paths_lit,
                                                                              self.self_lit_attentions,
@@ -159,8 +150,6 @@ class DecoderLayer(nn.Module, ABC):
 
     def forward(self, xv, xc, adj_pos, adj_neg):
         """Follow Figure 1 (right) for connections."""
-        # xv_pos, xc_pos = self.sublayer[0]((xv, xc), lambda x: self.attn_pos(x, adj_pos))
-        # xv_neg, xc_neg = self.sublayer[1]((xv, xc), lambda x: self.attn_neg(x, adj_neg))
         xv_pos, xc_pos = self.attn_pos((xv, xc), adj_pos)
         xv_neg, xc_neg = self.attn_neg((xv, xc), adj_neg)
         return self.sublayer[0](xv_pos + xv_neg, lambda x: fn.relu(self.ff_v(x))), \
@@ -250,7 +239,6 @@ class HGAConv(MessagePassing):
                 attention weights for each edge. (default: :obj:`None`)
         """
         h, c = self.heads, self.out_channels
-        # assert (not isinstance(adj, Tensor)) and h == len(adj), 'Number of heads is number of adjacency matrices'
 
         x_l, x_r, alpha_l, alpha_r, alpha_l_, alpha_r_ = None, None, None, None, None, None
 
@@ -400,16 +388,15 @@ if __name__ == "__main__":
     train_ds = ds[: last_trn]
     valid_ds = ds[last_trn: last_val]
     test_ds = ds[last_val:]
-    from loss import SimpleLossCompute2
 
     model = models.make_model(args)
     from optimizer import get_std_opt
 
     opt = get_std_opt(model, args)
     loader = DataLoader(ds[0:4 * 64], batch_size=64)
-    loss_func = SimpleLossCompute2(30, 100, opt)
+    loss_func = SimpleLossCompute(30, 100, opt)
 
-    for test_data in loader:
+    for test_data in enumerate(loader):
         model.encoder.reset()
         edge_index_pos = test_data.edge_index_pos
         edge_index_neg = test_data.edge_index_neg
