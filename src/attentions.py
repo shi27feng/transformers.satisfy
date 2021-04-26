@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as fn
 from linalg import softmax_, spmm_
-from src.norms import MaskPowerNorm
 
 
 class SparseAttention(nn.Module):
