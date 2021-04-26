@@ -42,7 +42,7 @@ class SparseAttention(nn.Module):
             :param adj: the adjacency matrix plays role of mask that encodes where each query can attend to
         """
         # Extract some shapes and compute the temperature
-        l, h, e = queries.shape[-3:]  # batch, n_heads, length, depth
+        l, h, e = queries.shape[-3:]  # length, heads, depth
         k, s, d = values.shape[-3:]
 
         softmax_temp = self.softmax_temp or 1. / math.sqrt(e)
@@ -68,8 +68,8 @@ class SparseAttention(nn.Module):
 
 
 class AddNorm(nn.Module):
-    def __init__(self, normalized_shape, dropout, **kwargs):
-        super(AddNorm, self).__init__(**kwargs)
+    def __init__(self, normalized_shape, dropout):
+        super(AddNorm, self).__init__()
         self.dropout = nn.Dropout(dropout)
         self.ln = nn.LayerNorm(normalized_shape)
 
