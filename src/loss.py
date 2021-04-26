@@ -36,16 +36,16 @@ class LossCompute(nn.Module, ABC):
         self.metric = metric
 
     # def forward(self, xv, adj_pos, adj_neg):
-    def __call__(self, xv, adj_pos, adj_neg, clause_count, gr_idx_cls, is_train):
+    def __call__(self, v, adj_pos, adj_neg, clause_count, gr_idx_cls, is_train):
         """
         Args:
-            xv: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
+            v: Tensor - shape = (num_nodes, 1), e.g., [[.9], [.8], [.3], [.4]]
             adj_pos: Tensor
             adj_neg: Tensor
         Desc:
             adj[0] is an array of clause indices, adj[1] is an array of variables
         """
-        sm = self._sm(xv, adj_pos, adj_neg, self.p, self.a)
+        sm = self._sm(v, adj_pos, adj_neg, self.p, self.a)
         # print("XV distance: ", (xv - 0.5).square().sum() * 0.01)
         _loss = self.metric(sm, clause_count, gr_idx_cls)
         if is_train:
@@ -62,13 +62,13 @@ class LossCompute(nn.Module, ABC):
         return _loss
 
     @staticmethod
-    def _sm(xv, adj_pos, adj_neg, p, a):
-        xv = xv.view(-1)
+    def _sm(v, adj_pos, adj_neg, p, a):
+        v = v.view(-1)
         # xv = LossCompute.push_to_side(xv, a)
-        xn = 1 - xv
+        xn = 1 - v
         idx = torch.cat((adj_pos[0], adj_neg[0]))
-        xe = torch.cat((torch.exp(p * xv)[adj_pos[1]], torch.exp(p * xn)[adj_neg[1]]))  # exp(x*p)
-        numerator = torch.mul(torch.cat((xv[adj_pos[1]], xn[adj_neg[1]])), xe)  # x*exp(x*p)
+        xe = torch.cat((torch.exp(p * v)[adj_pos[1]], torch.exp(p * xn)[adj_neg[1]]))  # exp(x*p)
+        numerator = torch.mul(torch.cat((v[adj_pos[1]], xn[adj_neg[1]])), xe)  # x*exp(x*p)
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
         return torch.div(numerator, dominator)  # S(MAX')
