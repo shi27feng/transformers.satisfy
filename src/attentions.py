@@ -42,8 +42,8 @@ class SparseAttention(nn.Module):
             :param adj: the adjacency matrix plays role of mask that encodes where each query can attend to
         """
         # Extract some shapes and compute the temperature
-        n, l, h, e = queries.shape  # batch, n_heads, length, depth
-        m, k, s, d = values.shape
+        l, h, e = queries.shape[-3:]  # batch, n_heads, length, depth
+        k, s, d = values.shape[-3:]
 
         softmax_temp = self.softmax_temp or 1. / math.sqrt(e)
 
