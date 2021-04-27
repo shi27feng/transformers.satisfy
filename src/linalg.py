@@ -88,7 +88,7 @@ def batched_spmm(nzt, adj, x, m=None, n=None):
     return spmm_(adj_, nzt_, heads * m, heads * n, x_)
 
 
-def transpose_(adj, value, m=None, n=None):
+def transpose_(adj, value=None, m=None, n=None):
     """ Batched transpose for multiple graph
     Args:
         adj: Tensor or list of Tensor
@@ -96,6 +96,8 @@ def transpose_(adj, value, m=None, n=None):
         m: int
         n: int
     """
+    if value is None:
+        value = torch.ones_like(adj[0])
     if isinstance(adj, Tensor):
         m = maybe_num_nodes(adj[0], m)
         n = maybe_num_nodes(adj[1], n)

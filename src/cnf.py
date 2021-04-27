@@ -3,9 +3,9 @@ import re
 import sys
 
 import torch
-from torch_geometric.data import Data, DataLoader
-from torch_sparse import spspmm, transpose
-from torch_geometric.utils.num_nodes import maybe_num_nodes
+from torch_geometric.data import Data
+from torch_sparse import spspmm
+from linalg import transpose_
 
 
 class BipartiteData(Data):
@@ -34,13 +34,9 @@ class BipartiteData(Data):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         adj_pos = adj_pos.to(device)
         adj_neg = adj_neg.to(device)
-        val_pos = torch.ones_like(adj_pos[1])
-        val_neg = torch.ones_like(adj_neg[1])
-        m = max(maybe_num_nodes(adj_pos[0]), maybe_num_nodes(adj_neg[0]))
-        n = max(maybe_num_nodes(adj_pos[1]), maybe_num_nodes(adj_neg[1]))
         # print("edge pos: {}; edge neg: {}; m: {}; n: {}".format(adj_pos.size(1), adj_neg.size(1), m, n))
-        adj_pos_t, _ = transpose(adj_pos, val_pos, m, n)
-        adj_neg_t, _ = transpose(adj_neg, val_neg, m, n)
+        adj_pos_t, _ = transpose_(adj_pos)
+        adj_neg_t, _ = transpose_(adj_neg)
 
         self.edges_cls_pp, self.edges_cls_pn, self.edges_cls_np, self.edges_cls_nn = \
             self._cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n)
