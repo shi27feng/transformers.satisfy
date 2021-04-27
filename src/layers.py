@@ -15,7 +15,6 @@ from torch_geometric.utils import softmax
 
 from linalg import spmm_, transpose_
 from utils import self_loop_augment
-from einops import rearrange, reduce
 
 
 def clones(module, k):
@@ -398,14 +397,14 @@ if __name__ == "__main__":
 
     for test_data in enumerate(loader):
         model.encoder.reset()
-        edge_index_pos = test_data.edge_index_pos
-        edge_index_neg = test_data.edge_index_neg
+        edges_pos = test_data.edges_pos
+        edges_neg = test_data.edges_neg
         xv = test_data.xv
         xc = test_data.xc
-        literal_assignment = model(xv, xc, edge_index_pos, edge_index_neg)
+        literal_assignment = model(xv, xc, edges_pos, edges_neg)
 
         print(literal_assignment.shape)
-        loss_of_this_assignment = loss_func(literal_assignment, edge_index_pos, edge_index_neg)
+        loss_of_this_assignment = loss_func(literal_assignment, edges_pos, edges_neg)
         print(loss_of_this_assignment)
         print()
         '''

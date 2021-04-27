@@ -84,16 +84,16 @@ class CNFParser:
         self.comments = []
         self.num_clauses = 0
         self.num_variables = 0
-        self.edge_index_pos = [[], []]
-        self.edge_index_neg = [[], []]
+        self.edges_pos = [[], []]  # [clauses, variables]
+        self.edges_neg = [[], []]
         self.satisfied = True
         self.text = None
 
     def reset(self):
         self.comments = []
         self.num_variables = 0
-        self.edge_index_pos = [[], []]
-        self.edge_index_neg = [[], []]
+        self.edges_pos = [[], []]
+        self.edges_neg = [[], []]
         self.text = None
 
     def read(self, path):
@@ -112,8 +112,8 @@ class CNFParser:
 
     def __str__(self):
         return f"""Number of variables: {self.num_variables}
-        Positive Clauses: {str(self.edge_index_pos)}
-        Negative Clauses: {str(self.edge_index_neg)}
+        Positive Clauses: {str(self.edges_pos)}
+        Negative Clauses: {str(self.edges_neg)}
         Comments: {str(self.comments)}"""
 
     def parse_dimacs(self):
@@ -138,11 +138,11 @@ class CNFParser:
                 for literal in line.split()[:-1]:
                     literal = int(literal)
                     if literal > 0:  # positive
-                        self.edge_index_pos[0].append(clause_index)
-                        self.edge_index_pos[1].append(literal - 1)  # start from 0
+                        self.edges_pos[0].append(clause_index)
+                        self.edges_pos[1].append(literal - 1)  # start from 0
                     else:  # negative
-                        self.edge_index_neg[0].append(clause_index)
-                        self.edge_index_neg[1].append(abs(literal) - 1)  # start from 0
+                        self.edges_neg[0].append(clause_index)
+                        self.edges_neg[1].append(abs(literal) - 1)  # start from 0
                 clause_index += 1
             else:
                 break
@@ -151,6 +151,6 @@ class CNFParser:
         # xv = torch.empty(self.num_variables, var_dim).uniform_()
         xv = torch.ones(size=(self.num_variables, var_dim))
         xc = torch.ones(size=(self.num_clauses, cls_dim)) * 0.5
-        pos_adj = torch.tensor(self.edge_index_pos)
-        neg_adj = torch.tensor(self.edge_index_neg)
+        pos_adj = torch.tensor(self.edges_pos)
+        neg_adj = torch.tensor(self.edges_neg)
         return BipartiteData(pos_adj, neg_adj, xv, xc)
