@@ -5,7 +5,9 @@ from linalg import transpose_
 
 
 def partial_adj(adj, nodes):
-    return torch.cat([adj[(adj[0] == nodes[i]).nonzero(as_tuple=True)[0]]
+    def ids(t: torch.Tensor, i):
+        return torch.nonzero((t == i), as_tuple=True)[0]
+    return torch.cat([adj[:, ids(adj[0], nodes[i])]
                       for i in range(nodes.shape[-1])], dim=0)
 
 
