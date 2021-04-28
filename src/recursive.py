@@ -1,5 +1,6 @@
 import torch
 from torch_scatter import scatter_sum
+
 from linalg import transpose_
 
 
@@ -32,8 +33,8 @@ def potential_clauses(v, xc, adj_pos, adj_neg):
     ucp = torch.where(scatter_sum(vp, adj_pos[0]) > 0, 0, 1)
     ucn = torch.where(scatter_sum(vn, adj_pos[0]) > 0, 0, 1)
 
-    return partial_adj(adj_pos, (ucp > 0).nonzero(as_tuple=True)[0]), \
-           partial_adj(adj_neg, (ucn > 0).nonzero(as_tuple=True)[0])
+    return (partial_adj(adj_pos, (ucp > 0).nonzero(as_tuple=True)[0]),
+            partial_adj(adj_neg, (ucn > 0).nonzero(as_tuple=True)[0]))
 
 
 def test():
