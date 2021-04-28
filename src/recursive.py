@@ -13,10 +13,15 @@ def potential_clauses(v, xc, adj_pos, adj_neg):
     ucp = torch.where(scatter_sum(vp, adj_pos[0]) > 0, 0, 1)
     ucn = torch.where(scatter_sum(vn, adj_pos[0]) > 0, 0, 1)
 
-    # get variables of unsatisfied clauses
+    # collect variables of unsatisfied clauses
     vp, vn = ucp[adj_pos_t[1]], ucn[adj_neg_t[1]]
     uvp = torch.where(scatter_sum(vp, adj_pos_t[0]) > 0, 1, 0)
     uvn = torch.where(scatter_sum(vn, adj_pos_t[0]) > 0, 1, 0)
+    v_ = torch.where((uvp + uvn) > 0, 1, 0)
+    if (1 - v_).sum() == 0:
+        return None
+
+    # determine the clauses to remove
 
     return
 

@@ -63,23 +63,23 @@ class EncoderLayer(nn.Module, ABC):
         self.out_channels = out_channels
         self.hidden_dims = hidden_dims
         # weights for meta-paths
-        self.lit_path_weights = nn.Parameter(torch.ones(num_meta_paths))
+        self.var_path_weights = nn.Parameter(torch.ones(num_meta_paths))
         self.cls_path_weights = nn.Parameter(torch.ones(num_meta_paths))
 
-        self.self_lit_attentions = clones(HGAConv(
+        self.self_var_attentions = clones(HGAConv(
             hidden_dims, hidden_dims, heads=self_att_heads, use_self_loops=True), num_meta_paths)
         self.self_cls_attentions = clones(HGAConv(
             hidden_dims, hidden_dims, heads=self_att_heads, use_self_loops=True), num_meta_paths)
 
-        # self.sublayer_lit = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
+        # self.sublayer_var = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
         # self.sublayer_cls = clones(SublayerConnection(hidden_dims, drop_rate), num_meta_paths)
-        self.sublayer_lit = SublayerConnection(hidden_dims, drop_rate)
+        self.sublayer_var = SublayerConnection(hidden_dims, drop_rate)
         self.sublayer_cls = SublayerConnection(hidden_dims, drop_rate)
         self.cross_attention_pos = HGAConv((hidden_dims, hidden_dims),
                                            out_channels, heads=cross_att_heads)
         self.cross_attention_neg = HGAConv((hidden_dims, hidden_dims),
                                            out_channels, heads=cross_att_heads)
-        self.lit_embedding = Linear(in_channels, hidden_dims, False)
+        self.var_embedding = Linear(in_channels, hidden_dims, False)
         self.cls_embedding = Linear(in_channels, hidden_dims, False)
 
     '''
@@ -104,14 +104,14 @@ class EncoderLayer(nn.Module, ABC):
             res += path_weights[i] * relu(att_layers[i](x, meta_paths[i]))  # TODO 
         return res
 
-    def forward(self, xv, xc, meta_paths_lit, meta_paths_cls, adj_pos, adj_neg):
-        xv = fn.relu(self.lit_embedding(xv))
+    def forward(self, xv, xc, meta_paths_var, meta_paths_cls, adj_pos, adj_neg):
+        xv = fn.relu(self.var_embedding(xv))
         xc = fn.relu(self.cls_embedding(xc))
 
-        xv = relu(self.sublayer_lit(xv, (lambda x: self._attention_meta_path(x,
-                                                                             meta_paths_lit,
-                                                                             self.self_lit_attentions,
-                                                                             self.lit_path_weights))))
+        xv = relu(self.sublayer_var(xv, (lambda x: self._attention_meta_path(x,
+                                                                             meta_paths_var,
+                                                                             self.self_var_attentions,
+                                                                             self.var_path_weights))))
         xc = relu(self.sublayer_cls(xc, (lambda x: self._attention_meta_path(x,
                                                                              meta_paths_cls,
                                                                              self.self_cls_attentions,
@@ -377,6 +377,7 @@ if __name__ == "__main__":
     import models
     from args import make_args
     from torch_geometric.data import DataLoader
+    from loss import LossCompute
 
     args = make_args()
 
@@ -393,7 +394,7 @@ if __name__ == "__main__":
 
     opt = get_std_opt(model, args)
     loader = DataLoader(ds[0:4 * 64], batch_size=64)
-    loss_func = SimpleLossCompute(30, 100, opt)
+    loss_func = LossCompute(30, 100, opt)
 
     for test_data in enumerate(loader):
         model.encoder.reset()

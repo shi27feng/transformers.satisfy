@@ -16,7 +16,7 @@ class BipartiteData(Data):
         self.xv = xv  # variables
         self.xc = xc  # clauses
 
-        self.edges_lit_pp = self.edges_lit_pn = self.edges_lit_np = self.edges_lit_nn = None
+        self.edges_var_pp = self.edges_var_pn = self.edges_var_np = self.edges_var_nn = None
         self.edges_cls_pp = self.edges_cls_pn = self.edges_cls_np = self.edges_cls_nn = None
 
         self._meta_paths_(pos_adj, neg_adj)
@@ -41,14 +41,14 @@ class BipartiteData(Data):
         self.edges_cls_pp, self.edges_cls_pn, self.edges_cls_np, self.edges_cls_nn = \
             self._cross_product(adj_pos, adj_pos_t, adj_neg, adj_neg_t, val_pos, val_neg, m, n)
 
-        self.edges_lit_pp, self.edges_lit_pn, self.edges_lit_np, self.edges_lit_nn = \
+        self.edges_var_pp, self.edges_var_pn, self.edges_var_np, self.edges_var_nn = \
             self._cross_product(adj_pos_t, adj_pos, adj_neg_t, adj_neg, val_pos, val_neg, n, m)
 
     def _put_back_cpu(self):
-        self.edges_lit_pp = self.edges_lit_pp.to("cpu")
-        self.edges_lit_pn = self.edges_lit_pn.to("cpu")
-        self.edges_lit_np = self.edges_lit_np.to("cpu")
-        self.edges_lit_nn = self.edges_lit_nn.to("cpu")
+        self.edges_var_pp = self.edges_var_pp.to("cpu")
+        self.edges_var_pn = self.edges_var_pn.to("cpu")
+        self.edges_var_np = self.edges_var_np.to("cpu")
+        self.edges_var_nn = self.edges_var_nn.to("cpu")
 
         self.edges_cls_pp = self.edges_cls_pp.to("cpu")
         self.edges_cls_pn = self.edges_cls_pn.to("cpu")
@@ -58,7 +58,7 @@ class BipartiteData(Data):
     def __inc__(self, key, value):
         if bool(re.search('(pos|neg)', key)):
             return torch.tensor([[self.xc.size(0)], [self.xv.size(0)]])
-        elif bool(re.search('lit', key)):
+        elif bool(re.search('var', key)):
             return torch.tensor([[self.xv.size(0)], [self.xv.size(0)]])
         elif bool(re.search('cls', key)):
             return torch.tensor([[self.xc.size(0)], [self.xc.size(0)]])
