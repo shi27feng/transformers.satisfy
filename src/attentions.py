@@ -43,25 +43,20 @@ class SparseAttention(nn.Module):
         """
         # Extract some shapes and compute the temperature
         l, h, e = queries.shape[-3:]  # length, heads, depth
-        k, s, d = values.shape[-3:]
+        k, _, _ = values.shape[-3:]
 
         softmax_temp = self.softmax_temp or 1. / math.sqrt(e)
 
         # Compute the un-normalized sparse attention according to adjacency matrix indices
-        if isinstance(adj, torch.Tensor):
-            adj_ = adj
-            qk = torch.sum(queries.index_select(dim=-3, index=adj[0]) *
-                           keys.index_select(dim=-3, index=adj[1]), dim=-1)
-        else:
-            qk = adj_ = None
-            raise RuntimeError('currently not support non-tensor adj')
+        qk = torch.sum(queries.index_select(dim=-3, index=adj[0]) *
+                       keys.index_select(dim=-3, index=adj[1]), dim=-1)
 
         # Compute the attention and the weighted average, adj[0] is cols idx in the same row
         alpha = fn.dropout(softmax_(softmax_temp * qk, adj[0]),
                            p=self.dropout,
                            training=self.training)
         # sparse matmul, adj as indices and qk as nonzero
-        v = spmm_(adj_, alpha, l, k, values)
+        v = spmm_(adj, alpha, l, k, values)
         v = fn.dropout(v, p=self.dropout)
         # Make sure that what we return is contiguous
         return v.contiguous()
@@ -81,5 +76,5 @@ class EncoderLayer(nn.Module):
     def __init__(self):
         super(EncoderLayer, self).__init__()
 
-    def forward(self):
+    def forward(self, v, c, adj):
         return

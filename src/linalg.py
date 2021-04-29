@@ -8,7 +8,7 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 from einops import rearrange, repeat
 
 
-def spmm_(indices, nz, m, n, dense, dim=-3):
+def spmm_(indices, nz, m, n, d, dim=-3):
     """Sparse matrix multiplication, it supports tensor
     with dimension size more than 2, and the code is inspired by:
     "PyTorch Sparse"[https://tinyurl.com/ycn2nkdr]
@@ -19,16 +19,15 @@ def spmm_(indices, nz, m, n, dense, dim=-3):
         n (int): The second dimension of corresponding dense matrix.
         d (:class:`Tensor`): tensor of dense matrix
     """
-    assert n == dense.shape[dim]
+    assert n == d.shape[dim]
     rows, cols = indices
-    dense = dense if dense.dim() > 1 else dense.unsqueeze(-1)
-    out = dense.index_select(dim, cols) * nz.unsqueeze(-1)
+    d = d if d.dim() > 1 else d.unsqueeze(-1)
+    out = d.index_select(dim, cols) * nz.unsqueeze(-1)
     return scatter_add(out, rows, dim=dim, dim_size=m)
 
 
 def softmax_(src: Tensor,
              index: Optional[Tensor],
-             ptr: Optional[Tensor] = None,
              num_nodes: Optional[int] = None,
              dim=-2) -> Tensor:
     r"""Computes a sparsely evaluated softmax.
