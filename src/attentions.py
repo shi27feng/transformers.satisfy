@@ -5,6 +5,8 @@ from typing import Union, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as fn
+from einops import rearrange
+
 from linalg import softmax_, spmm_, transpose_
 
 
@@ -85,34 +87,43 @@ class FeedForward(nn.Module):
         return self.net(x)
 
 
-def _attention_meta_path(x, lin_qkv, meta_paths, attn, path_weights):
+def split_head(q, k, v, heads):
+    return rearrange(q, '... l (h c) -> ... l h c', h=heads), \
+           rearrange(k, '... l (h c) -> ... l h c', h=heads), \
+           rearrange(v, '... l (h c) -> ... l h c', h=heads)
+
+
+def _attention_meta_path(x, lin_qkv, meta_paths, attn, heads, path_weights):
     q, k, v = lin_qkv(x).chunk(3, dim=-1)
     res = torch.zeros_like(x)
     for i in range(len(meta_paths)):  # they are not sequential, but in reduction mode
-        res += path_weights[i] * attn(q, k, v, meta_paths[i])  # TODO
-    return res
+        res += path_weights[i] * attn(*split_head(q, k, v, heads), meta_paths[i])
+    return rearrange(res, '... l h c -> ... l (h c)')
 
 
-def _cross_attention(x, y, lin_q, lin_kv, attn, adj):
+def _cross_attention(x, y, lin_q, lin_kv, attn, heads, adj):
     adj_ = transpose_(adj)
     q = lin_q(x)
     k, v = lin_kv(y).chunk(2, dim=-1)
-    w = attn(q, k, v, adj)
+    w = attn(*split_head(q, k, v, heads), adj)
 
     q = lin_q(y)
     k, v = lin_kv(x).chunk(2, dim=-1)
-    u = attn(q, k, v, adj_)
+    u = attn(*split_head(q, k, v, heads), adj_)
 
-    return w, u
+    return rearrange(w, '... l h c -> ... l (h c)'), \
+        rearrange(u, '... l h c -> ... l (h c)')
 
 
 class EncoderLayer(nn.Module):
     def __init__(self,
                  in_channels,
                  hd_channels,
+                 heads,
                  num_meta_paths,
                  dropout):
         super(EncoderLayer, self).__init__()
+        self.heads = heads
         self.path_weight_var = nn.Parameter(torch.ones(num_meta_paths))
         self.path_weight_cls = nn.Parameter(torch.ones(num_meta_paths))
 
@@ -132,22 +143,24 @@ class EncoderLayer(nn.Module):
         self.ffn_cls = FeedForward(hd_channels, hd_channels, dropout)
 
     def forward(self, v, c, meta_paths_var, meta_paths_cls, adj_pos, adj_neg):
-        v_ = _attention_meta_path(v, self.lin_qkv_var, meta_paths_var, self.mha, self.path_weight_var)
-        c_ = _attention_meta_path(c, self.lin_qkv_cls, meta_paths_cls, self.mha, self.path_weight_cls)
-        vp, cp = _cross_attention(v_, c_, self.lin_q, self.lin_kv, self.mha, adj_pos)
-        vn, cn = _cross_attention(v_, c_, self.lin_q, self.lin_kv, self.mha, adj_neg)
+        v_ = _attention_meta_path(v, self.lin_qkv_var, meta_paths_var, self.mha, self.heads, self.path_weight_var)
+        c_ = _attention_meta_path(c, self.lin_qkv_cls, meta_paths_cls, self.mha, self.heads, self.path_weight_cls)
+        vp, cp = _cross_attention(v_, c_, self.lin_q, self.lin_kv, self.mha, self.heads, adj_pos)
+        vn, cn = _cross_attention(v_, c_, self.lin_q, self.lin_kv, self.mha, self.heads, adj_neg)
 
-        return vp + vn, cp + cn
+        v_, c_ = self.add_norm_att_var(vp + vn, v_), self.add_norm_att_cls(cp + cn, c_)
+        return self.add_norm_ffn_var(v_, self.ffn_var(v_)), \
+            self.add_norm_ffn_cls(c_, self.ffn_cls(c_))
 
 
 class DecoderLayer(nn.Module):
     def __init__(self,
                  in_channels,
                  hd_channels,
-                 num_meta_paths,
+                 heads,
                  dropout):
         super(DecoderLayer, self).__init__()
-
+        self.heads = heads
         self.lin_qkv_var = nn.Linear(in_channels, hd_channels * 3)
         self.lin_qkv_cls = nn.Linear(in_channels, hd_channels * 3)
         self.lin_kv = nn.Linear(in_channels, hd_channels * 2)
@@ -164,7 +177,9 @@ class DecoderLayer(nn.Module):
         self.ffn_cls = FeedForward(hd_channels, hd_channels, dropout)
 
     def forward(self, v, c, adj_pos, adj_neg):
-        vp, cp = _cross_attention(v, c, self.lin_q, self.lin_kv, self.mha, adj_pos)
-        vn, cn = _cross_attention(v, c, self.lin_q, self.lin_kv, self.mha, adj_neg)
+        vp, cp = _cross_attention(v, c, self.lin_q, self.lin_kv, self.mha, self.heads, adj_pos)
+        vn, cn = _cross_attention(v, c, self.lin_q, self.lin_kv, self.mha, self.heads, adj_neg)
 
-        return vp + vn, cp + cn
+        v_, c_ = self.add_norm_att_var(vp + vn, v), self.add_norm_att_cls(cp + cn, c)
+        return self.add_norm_ffn_var(v_, self.ffn_var(v_)), \
+            self.add_norm_ffn_cls(c_, self.ffn_cls(c_))
