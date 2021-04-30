@@ -39,6 +39,7 @@ def make_args():
     parser.add_argument('--decoder_channels', dest='decoder_channels', default='32,16,16', type=str)
     parser.add_argument('--self_att_heads', dest='self_att_heads', default=8, type=int)
     parser.add_argument('--cross_att_heads', dest='cross_att_heads', default=8, type=int)
+    parser.add_argument('--heads', dest='heads', default=8, type=int)
     parser.add_argument('--activation', dest='activation', default='relu', type=str)
     # Training Setting up
     parser.add_argument('--lr', dest='lr', default=1e-6, type=float)

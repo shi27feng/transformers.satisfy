@@ -148,7 +148,7 @@ class EncoderLayer(nn.Module):
         self.add_norm_ffn_cls = AddNorm(hd_channels, dropout)
         self.ffn_cls = FeedForward(hd_channels, hd_channels, dropout)
 
-    def forward(self, v, c, meta_paths_var, meta_paths_cls, adj_pos, adj_neg):
+    def forward(self, v, c, meta_paths_var, meta_paths_cls):  # , adj_pos, adj_neg):
         v_ = _attention_meta_path(v, self.lin_qkv_var, meta_paths_var, self.mha, self.heads, self.path_weight_var)
         c_ = _attention_meta_path(c, self.lin_qkv_cls, meta_paths_cls, self.mha, self.heads, self.path_weight_cls)
         # v_, c_ = _cross_attn_block(v, c, self.lin_q, self.lin_kv, self.mha, self.heads, adj_pos, adj_neg)
