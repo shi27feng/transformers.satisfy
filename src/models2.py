@@ -22,8 +22,14 @@ class Encoder(nn.Module, ABC):
 
         channels = [int(n) for n in args.encoder_channels.split(',')]
         self.layers = nn.ModuleList([
-            EncoderLayer(channels[i],
-                         channels[i + 1],
+            EncoderLayer(in_channels=channels[i],
+                         hd_channels=channels[i + 1],
+                 heads,
+                 num_meta_paths,
+                 dropout
+
+                ,
+                         ,
                          channels[i + 1],
                          args.num_meta_paths,
                          in_channels,

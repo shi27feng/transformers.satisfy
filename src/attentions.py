@@ -115,6 +115,12 @@ def _cross_attention(x, y, lin_q, lin_kv, attn, heads, adj):
         rearrange(u, '... l h c -> ... l (h c)')
 
 
+def _cross_attn_block(v, c, lin_q, lin_kv, mha, heads, adj_pos, adj_neg):
+    vp, cp = _cross_attention(v, c, lin_q, lin_kv, mha, heads, adj_pos)
+    vn, cn = _cross_attention(v, c, lin_q, lin_kv, mha, heads, adj_neg)
+    return vp + vn, cp + cn
+
+
 class EncoderLayer(nn.Module):
     def __init__(self,
                  in_channels,
@@ -145,12 +151,11 @@ class EncoderLayer(nn.Module):
     def forward(self, v, c, meta_paths_var, meta_paths_cls, adj_pos, adj_neg):
         v_ = _attention_meta_path(v, self.lin_qkv_var, meta_paths_var, self.mha, self.heads, self.path_weight_var)
         c_ = _attention_meta_path(c, self.lin_qkv_cls, meta_paths_cls, self.mha, self.heads, self.path_weight_cls)
-        vp, cp = _cross_attention(v_, c_, self.lin_q, self.lin_kv, self.mha, self.heads, adj_pos)
-        vn, cn = _cross_attention(v_, c_, self.lin_q, self.lin_kv, self.mha, self.heads, adj_neg)
+        # v_, c_ = _cross_attn_block(v, c, self.lin_q, self.lin_kv, self.mha, self.heads, adj_pos, adj_neg)
 
-        v_, c_ = self.add_norm_att_var(vp + vn, v_), self.add_norm_att_cls(cp + cn, c_)
-        return self.add_norm_ffn_var(v_, self.ffn_var(v_)), \
-            self.add_norm_ffn_cls(c_, self.ffn_cls(c_))
+        v, c = self.add_norm_att_var(v, v_), self.add_norm_att_cls(c, c_)
+        return self.add_norm_ffn_var(v, self.ffn_var(v)), \
+            self.add_norm_ffn_cls(c, self.ffn_cls(c))
 
 
 class DecoderLayer(nn.Module):
@@ -177,9 +182,12 @@ class DecoderLayer(nn.Module):
         self.ffn_cls = FeedForward(hd_channels, hd_channels, dropout)
 
     def forward(self, v, c, adj_pos, adj_neg):
-        vp, cp = _cross_attention(v, c, self.lin_q, self.lin_kv, self.mha, self.heads, adj_pos)
-        vn, cn = _cross_attention(v, c, self.lin_q, self.lin_kv, self.mha, self.heads, adj_neg)
+        v_, c_ = _cross_attn_block(v, c,
+                                   self.lin_q,
+                                   self.lin_kv,
+                                   self.mha, self.heads,
+                                   adj_pos, adj_neg)
 
-        v_, c_ = self.add_norm_att_var(vp + vn, v), self.add_norm_att_cls(cp + cn, c)
-        return self.add_norm_ffn_var(v_, self.ffn_var(v_)), \
-            self.add_norm_ffn_cls(c_, self.ffn_cls(c_))
+        v, c = self.add_norm_att_var(v, v_), self.add_norm_att_cls(c, c_)
+        return self.add_norm_ffn_var(v, self.ffn_var(v)), \
+            self.add_norm_ffn_cls(c, self.ffn_cls(c))
