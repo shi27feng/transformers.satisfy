@@ -95,7 +95,7 @@ def split_head(q, k, v, heads):
 
 def _attention_meta_path(x, lin_qkv, meta_paths, attn, heads, path_weights):
     q, k, v = lin_qkv(x).chunk(3, dim=-1)
-    res = torch.zeros_like(x)
+    res = 0.0
     for i in range(len(meta_paths)):  # they are not sequential, but in reduction mode
         res += path_weights[i] * attn(*split_head(q, k, v, heads), meta_paths[i])
     return rearrange(res, '... l h c -> ... l (h c)')

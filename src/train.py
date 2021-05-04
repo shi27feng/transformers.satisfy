@@ -9,7 +9,7 @@ from tqdm import tqdm, trange
 from args import make_args
 from data import SatDataset
 from loss import LossCompute, LossMetric
-from models import make_model
+from models2 import make_model
 from optimizer import get_std_opt
 from torch_geometric.data import DataLoader
 
@@ -52,8 +52,8 @@ def run_epoch(data_loader,
         # gr_idx_lit = torch.cat([torch.tensor([i] * num_lit[i]) for i in range(num_lit.size(0))]).to(device)
         gr_idx_cls = torch.cat([torch.tensor([i] * num_cls[i]) for i in range(num_cls.size(0))]).to(device)
         with torch.set_grad_enabled(is_train):
-            adj_pos, adj_neg = batch.edges_pos, batch.edges_neg
-            xv = model(batch, args)
+            adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
+            xv = model(batch)
             loss, sm = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), gr_idx_cls[: batch.xc.size(0)], is_train)
             total_loss += loss
         if i == 0:

@@ -13,6 +13,8 @@ class GraphTransformer(nn.Module, ABC):
         super(GraphTransformer, self).__init__()
         self.args = args
         channels = [int(n) for n in args.decoder_channels.split(',')]
+        self.emb_c = nn.Linear(in_features=args.in_channels, out_features=channels[0])
+        self.emb_v = nn.Linear(in_features=args.in_channels, out_features=channels[0])
         self.enc_ = nn.ModuleList([
             EncoderLayer(in_channels=channels[i],
                          hd_channels=channels[i + 1],
@@ -28,19 +30,21 @@ class GraphTransformer(nn.Module, ABC):
         ])
         
     def forward(self, graph):
-        meta_paths_var = [graph.edges_var_pp,  # $$A \times A^T$$
-                          graph.edges_var_pn,
-                          graph.edges_var_np,
-                          graph.edges_var_nn]
-        meta_paths_cls = [graph.edges_cls_pp,  # $$A^T \times A$$
-                          graph.edges_cls_pn,
-                          graph.edges_cls_np,
-                          graph.edges_cls_nn]
+        meta_paths_var = [graph.edge_index_var_pp,  # $$A \times A^T$$
+                          graph.edge_index_var_pn,
+                          graph.edge_index_var_np,
+                          graph.edge_index_var_nn]
+        meta_paths_cls = [graph.edge_index_cls_pp,  # $$A^T \times A$$
+                          graph.edge_index_cls_pn,
+                          graph.edge_index_cls_np,
+                          graph.edge_index_cls_nn]
         # build encoders
-        x, c, adj_pos, adj_neg = graph.x, graph.c, graph.edges_pos, graph.edges_neg
+        x, c, adj_pos, adj_neg = graph.xv, graph.xc, graph.edge_index_pos, graph.edge_index_neg
+        x = self.emb_v(x)
+        c = self.emb_c(c)
         for i in range(len(self.enc_)):
-            x, c = self.enc_(x, c, meta_paths_var, meta_paths_cls)
-            x, c = self.dec_(x, c, adj_pos, adj_neg)
+            x, c = self.enc_[i](x, c, meta_paths_var, meta_paths_cls)
+            x, c = self.dec_[i](x, c, adj_pos, adj_neg)
         return
 
 

@@ -35,8 +35,8 @@ def make_args():
     parser.add_argument('--num_encoder_layers', dest='num_encoder_layers', default=4, type=int)
     parser.add_argument('--num_decoder_layers', dest='num_decoder_layers', default=2, type=int)
     parser.add_argument('--num_meta_paths', dest='num_meta_paths', default=4, type=int)
-    parser.add_argument('--encoder_channels', dest='encoder_channels', default='1,16,32,32,32', type=str)
-    parser.add_argument('--decoder_channels', dest='decoder_channels', default='32,16,16', type=str)
+    parser.add_argument('--encoder_channels', dest='encoder_channels', default='16,32,32,32', type=str)
+    parser.add_argument('--decoder_channels', dest='decoder_channels', default='16,32,32,32', type=str)
     parser.add_argument('--self_att_heads', dest='self_att_heads', default=8, type=int)
     parser.add_argument('--cross_att_heads', dest='cross_att_heads', default=8, type=int)
     parser.add_argument('--heads', dest='heads', default=8, type=int)
@@ -53,6 +53,8 @@ def make_args():
     parser.add_argument('--epoch_save', dest='epoch_save', default=500, type=int)  # save every
     parser.add_argument('--save_root', dest='save_root', default='saved_model', type=str)
     parser.add_argument('--save_name', dest='save_name', default='check_point', type=str)
+
+    parser.add_argument('--in_channels', default=1, type=int)
 
     parser.set_defaults(gpu=True,
                         dataset='RND3SAT/uf50-218',

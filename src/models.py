@@ -38,18 +38,18 @@ class Encoder(nn.Module, ABC):
         meta paths are only calculated once
         """
 
-        meta_paths_var = [graph.edges_var_pp,  # $$A \times A^T$$
-                          graph.edges_var_pn,
-                          graph.edges_var_np,
-                          graph.edges_var_nn]
-        meta_paths_cls = [graph.edges_cls_pp,  # $$A^T \times A$$
-                          graph.edges_cls_pn,
-                          graph.edges_cls_np,
-                          graph.edges_cls_nn]
+        meta_paths_var = [graph.edge_index_var_pp,  # $$A \times A^T$$
+                          graph.edge_index_var_pn,
+                          graph.edge_index_var_np,
+                          graph.edge_index_var_nn]
+        meta_paths_cls = [graph.edge_index_cls_pp,  # $$A^T \times A$$
+                          graph.edge_index_cls_pn,
+                          graph.edge_index_cls_np,
+                          graph.edge_index_cls_nn]
         for layer in self.layers:
             xv, xc = layer(xv, xc,
                            meta_paths_var, meta_paths_cls,
-                           graph.edges_pos, graph.edges_neg)
+                           graph.edge_index_pos, graph.edge_index_neg)
             if self.activation is not None:
                 xv, xc = self.activation(xv), self.activation(xc)
 
@@ -76,7 +76,7 @@ class Decoder(nn.Module, ABC):
 
     def forward(self, xv, xc, graph):
         for layer in self.layers:
-            xv, xc = layer(xv, xc, graph.edges_pos, graph.edges_neg)
+            xv, xc = layer(xv, xc, graph.edge_index_pos, graph.edge_index_neg)
             if self.activation is not None:
                 xv, xc = self.activation(xv), self.activation(xc)
 
