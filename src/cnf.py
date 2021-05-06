@@ -62,7 +62,7 @@ class BipartiteData(Data):
         self.edge_index_cls_nn = self.edge_index_cls_nn.to("cpu")
 
     def __inc__(self, key, value):
-        print(key, value.shape)
+        #print(key, value.shape)
         # if bool(re.search('(pos|neg)', key)):
         #     return torch.tensor([[self.xc.size(0)], [self.xv.size(0)]])
         # elif bool(re.search('var', key)):

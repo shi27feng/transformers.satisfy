@@ -32,7 +32,7 @@ class SparseAttention(nn.Module):
         self.softmax_temp = softmax_temp
         self.dropout = dropout
 
-    def forward(self, queries, keys, values, adj):
+    def forward(self, queries, keys, values, edges):
         """Implements the multi-head softmax attention.
         keys and values should have same dimensions.
 
@@ -50,13 +50,13 @@ class SparseAttention(nn.Module):
         softmax_temp = self.softmax_temp or 1. / math.sqrt(e)
 
         # Compute the un-normalized sparse attention according to adjacency matrix indices
-        qk = torch.sum(queries.index_select(dim=-3, index=adj[0]) *
-                       keys.index_select(dim=-3, index=adj[1]), dim=-1)
+        qk = torch.sum(queries.index_select(dim=-3, index=edges[0]) *
+                       keys.index_select(dim=-3, index=edges[1]), dim=-1)
 
-        # Compute the attention and the weighted average, adj[0] is cols idx in the same row
-        alpha = softmax_(softmax_temp * qk, adj[0])
-        # sparse matmul, adj as indices and qk as nonzero
-        v = spmm_(adj, alpha, l, k, values)
+        # Compute the attention and the weighted average, edges[0] is cols idx in the same row
+        alpha = softmax_(softmax_temp * qk, edges[0])
+        # sparse matmul, edges as indices and qk as nonzero
+        v = spmm_(edges, alpha, l, k, values)
         v = fn.dropout(v, p=self.dropout)
         # Make sure that what we return is contiguous
         return v.contiguous()
@@ -97,19 +97,19 @@ def _attention_meta_path(x, lin_qkv, meta_paths, attn, heads, path_weights):
     q, k, v = lin_qkv(x).chunk(3, dim=-1)
     res = 0.0
     for i in range(len(meta_paths)):  # they are not sequential, but in reduction mode
-        res += path_weights[i] * attn(*split_head(q, k, v, heads), meta_paths[i])
+        res += path_weights[i] * attn[i](*split_head(q, k, v, heads), meta_paths[i])
     return rearrange(res, '... l h c -> ... l (h c)')
 
 
 def _cross_attention(x, y, lin_q, lin_kv, attn, heads, adj):
-    adj_ = transpose_(adj)
-    q = lin_q(x)
-    k, v = lin_kv(y).chunk(2, dim=-1)
-    w = attn(*split_head(q, k, v, heads), adj)
+    adj_ = transpose_(adj)[0]
+    q = lin_q[0](x)
+    k, v = lin_kv[0](y).chunk(2, dim=-1)
+    w = attn[0](*split_head(q, k, v, heads), edges=adj_)
 
-    q = lin_q(y)
-    k, v = lin_kv(x).chunk(2, dim=-1)
-    u = attn(*split_head(q, k, v, heads), adj_)
+    q = lin_q[1](y)
+    k, v = lin_kv[1](x).chunk(2, dim=-1)
+    u = attn[1](*split_head(q, k, v, heads), edges=adj)
 
     return rearrange(w, '... l h c -> ... l (h c)'), \
         rearrange(u, '... l h c -> ... l (h c)')
@@ -137,8 +137,8 @@ class EncoderLayer(nn.Module):
         self.lin_qkv_cls = nn.Linear(in_channels, hd_channels * 3)
         self.lin_kv = nn.Linear(in_channels, hd_channels * 2)
         self.lin_q = nn.Linear(in_channels, hd_channels)
-
-        self.mha = SparseAttention(dropout=dropout)
+        self.num_meta_paths = num_meta_paths
+        self.mha = nn.ModuleList([SparseAttention(dropout=dropout)] * num_meta_paths * 2)
 
         self.add_norm_att_var = AddNorm(hd_channels, dropout)
         self.add_norm_ffn_var = AddNorm(hd_channels, dropout)
@@ -149,8 +149,8 @@ class EncoderLayer(nn.Module):
         self.ffn_cls = FeedForward(hd_channels, hd_channels, dropout)
 
     def forward(self, v, c, meta_paths_var, meta_paths_cls):  # , adj_pos, adj_neg):
-        v_ = _attention_meta_path(v, self.lin_qkv_var, meta_paths_var, self.mha, self.heads, self.path_weight_var)
-        c_ = _attention_meta_path(c, self.lin_qkv_cls, meta_paths_cls, self.mha, self.heads, self.path_weight_cls)
+        v_ = _attention_meta_path(v, self.lin_qkv_var, meta_paths_var, self.mha[:self.num_meta_paths], self.heads, self.path_weight_var)
+        c_ = _attention_meta_path(c, self.lin_qkv_cls, meta_paths_cls, self.mha[self.num_meta_paths:], self.heads, self.path_weight_cls)
         # v_, c_ = _cross_attn_block(v, c, self.lin_q, self.lin_kv, self.mha, self.heads, adj_pos, adj_neg)
 
         v, c = self.add_norm_att_var(v, v_), self.add_norm_att_cls(c, c_)
@@ -166,12 +166,12 @@ class DecoderLayer(nn.Module):
                  dropout):
         super(DecoderLayer, self).__init__()
         self.heads = heads
-        self.lin_qkv_var = nn.Linear(in_channels, hd_channels * 3)
-        self.lin_qkv_cls = nn.Linear(in_channels, hd_channels * 3)
-        self.lin_kv = nn.Linear(in_channels, hd_channels * 2)
-        self.lin_q = nn.Linear(in_channels, hd_channels)
+        #self.lin_qkv_var = nn.Linear(in_channels, hd_channels * 3)
+        #self.lin_qkv_cls = nn.Linear(in_channels, hd_channels * 3)
+        self.lin_kv = nn.ModuleList([nn.Linear(in_channels, hd_channels * 2)] * 2)
+        self.lin_q = nn.ModuleList([nn.Linear(in_channels, hd_channels)] * 2)
 
-        self.mha = SparseAttention(dropout=dropout)
+        self.mha = nn.ModuleList([SparseAttention(dropout=dropout)] * 2)
 
         self.add_norm_att_var = AddNorm(hd_channels, dropout)
         self.add_norm_ffn_var = AddNorm(hd_channels, dropout)

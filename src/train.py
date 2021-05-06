@@ -51,7 +51,7 @@ def run_epoch(data_loader,
         # model.encoder.reset()
         # gr_idx_lit = torch.cat([torch.tensor([i] * num_lit[i]) for i in range(num_lit.size(0))]).to(device)
         gr_idx_cls = torch.cat([torch.tensor([i] * num_cls[i]) for i in range(num_cls.size(0))]).to(device)
-        with torch.set_grad_enabled(is_train):
+        with torch.set_grad_enabled(is_train) and torch.autograd.set_detect_anomaly(True):
             adj_pos, adj_neg = batch.edge_index_pos, batch.edge_index_neg
             xv = model(batch)
             loss, sm = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), gr_idx_cls[: batch.xc.size(0)], is_train)
@@ -59,7 +59,7 @@ def run_epoch(data_loader,
         if i == 0:
             sat = 100 * (sm // 0.50001).mean().item()
             sat_r.append(sat)
-            print("Sat Rate: ", sat, "%")
+            print("\nSat Rate: {:.2f}%".format(sat))
     elapsed = time.time() - start
     ms = 'average loss' if is_train else 'accuracy '
     print(ms + ': {}; average time: {}'.format(total_loss / len(data_loader.dataset),

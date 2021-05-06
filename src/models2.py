@@ -45,7 +45,7 @@ class GraphTransformer(nn.Module, ABC):
         for i in range(len(self.enc_)):
             x, c = self.enc_[i](x, c, meta_paths_var, meta_paths_cls)
             x, c = self.dec_[i](x, c, adj_pos, adj_neg)
-        return
+        return torch.sigmoid(x)
 
 
 def make_model(args):
