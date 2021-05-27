@@ -144,3 +144,8 @@ dmypy.json
 
 # Mac OS
 .DS_STORE
+
+# generated images/figure
+*.pdf
+*.jpg
+*.png
