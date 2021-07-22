@@ -29,6 +29,7 @@ dataset/kcover/
 dataset/raw/
 dataset/processed/
 saved_model/
+res/
 
 *.egg-info/
 .installed.cfg
