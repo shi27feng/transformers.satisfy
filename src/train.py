@@ -42,11 +42,12 @@ def run_epoch(data_loader,
     total_loss = 0
     start = time.time()
     bs = args.batch_size
+    num_batches = len(data_loader)
     for i, batch in tqdm(enumerate(data_loader),
-                         total=len(data_loader),
+                         total=num_batches,
                          desc=desc):
         batch = batch.to(device)
-        num_lit = num_literals[i * bs: (i + 1) * bs]
+        # num_lit = num_literals[i * bs: (i + 1) * bs]
         num_cls = num_clauses[i * bs: (i + 1) * bs]
         # model.encoder.reset()
         # gr_idx_lit = torch.cat([torch.tensor([i] * num_lit[i]) for i in range(num_lit.size(0))]).to(device)
@@ -56,7 +57,8 @@ def run_epoch(data_loader,
             xv = model(batch)
             loss, sm = loss_compute(xv, adj_pos, adj_neg, batch.xc.size(0), gr_idx_cls[: batch.xc.size(0)], is_train)
             total_loss += loss
-        if i == 0:
+        # if i == 0:
+        if i == num_batches - 1:
             sat = 100 * (sm // 0.50001).mean().item()
             sat_r.append(sat)
             print("\nSat Rate: {:.2f}%".format(sat))
@@ -108,13 +110,15 @@ def main():
     accuracy_compute = LossCompute(args.sm_par, args.sig_par, noam_opt, loss_metric.accuracy, debug=True)
 
     sat_valid = []
-    for epoch in trange(last_epoch, args.epoch_num + last_epoch):
+    # for epoch in trange(last_epoch, args.epoch_num + last_epoch):
+    for epoch in range(last_epoch, args.epoch_num + last_epoch):
         # print('Epoch: {} Training...'.format(epoch))
         model.train(True)
+        print(" ---------------------- Epoch {} ------------------------".format(epoch))
         total_loss, _ = run_epoch(train_loader, model, loss_compute, device, args, is_train=True,
                                   num_literals=num_literals, num_clauses=num_clauses,
                                   desc="Train Epoch {}".format(epoch))
-        print('Epoch: {} Evaluating...'.format(epoch))
+        # print('Epoch: {} Evaluating...'.format(epoch))
         # TODO Save model
         if epoch % args.epoch_save == 0:
             make_checkpoint(args.save_root, args.save_name, epoch, model, noam_opt.optimizer, total_loss)
@@ -123,7 +127,7 @@ def main():
         model.eval()
         _, sat_ = run_epoch(valid_loader, model, accuracy_compute, device, args, is_train=False,
                             num_literals=num_literals[last_train: last_valid], num_clauses=num_clauses[last_train: last_valid],
-                            desc="Valid Epoch {}".format(epoch))
+                            desc="\nValid Epoch {}".format(epoch))
         sat_valid += sat_
 
     print('Testing...')
