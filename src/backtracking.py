@@ -8,7 +8,7 @@ def unsatisfied_clauses(clauses: torch.Tensor):
     return torch.nonzero(clauses, as_tuple=True)[0]
 
 
-def candidate_variables(unsat_clauses, adj):
+def vars_of_clauses(unsat_clauses, adj):
     rows, cols = adj
     s = torch.cat([torch.tensor([0]), 
             torch.nonzero(rows[1:] - rows[:-1], as_tuple=True)[0] + 1], 
@@ -17,7 +17,14 @@ def candidate_variables(unsat_clauses, adj):
                         sorted=True)
 
 
-# ------------------------------------------------------------------------------
+def candidate_solved_clauses(clauses, vars):
+    # get the list of solved clauses
+    sc = torch.nonzero(clauses, as_tuple=True)[0]
+    
+    return
+
+
+# ---------------------------- Old implementation ------------------------------------
 def partial_adj(adj, nodes):
     def ids(t: torch.Tensor, i):
         return torch.nonzero((t == i), as_tuple=True)[0]
