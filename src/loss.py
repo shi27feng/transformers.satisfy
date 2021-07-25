@@ -65,14 +65,14 @@ class LossCompute(nn.Module, ABC):
     def _sm(v, adj_pos, adj_neg, p, a):
         v = v.view(-1)
         # xv = LossCompute.push_to_side(xv, a)
-        xn = 1 - v
+        nv = 1 - v
         idx = torch.cat((adj_pos[0], adj_neg[0]))
-        xe = torch.cat((torch.exp(p * v)[adj_pos[1]], torch.exp(p * xn)[adj_neg[1]]))  # exp(x*p)
-        numerator = torch.mul(torch.cat((v[adj_pos[1]], xn[adj_neg[1]])), xe)  # x*exp(x*p)
+        xe = torch.cat((torch.exp(p * v)[adj_pos[1]], torch.exp(p * nv)[adj_neg[1]]))  # exp(x*p)
+        numerator = torch.mul(torch.cat((v[adj_pos[1]], nv[adj_neg[1]])), xe)  # x*exp(x*p)
         numerator = scatter(numerator, idx, reduce="sum")
         dominator = scatter(xe, idx, reduce="sum")
         return torch.div(numerator, dominator)  # S(MAX')
-        # return scatter(torch.cat((xv[adj_pos[1]], xn[adj_neg[1]])), idx, reduce='max')
+        # return scatter(torch.cat((xv[adj_pos[1]], nv[adj_neg[1]])), idx, reduce='max')
 
     @staticmethod
     def push_to_side(x, a):  # larger a means push harder
