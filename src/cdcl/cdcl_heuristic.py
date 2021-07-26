@@ -17,7 +17,6 @@ class Clause:
     """
     The class which represents a single clause.
     """
-
     def __init__(self, literals, w1=None, w2=None, learned=False, lbd=0):
         self.literals = literals  # describes how exactly does this clause look like
         self.size = len(self.literals)
@@ -47,12 +46,12 @@ class Clause:
         unassigned = []
         for literal in self.literals:
             if assignment[abs(literal)] == literal:
-                return []
+                return []  # SAT, solved
 
             if assignment[abs(literal)] == 0:
                 unassigned.append(literal)
 
-        return list(unassigned)
+        return list(unassigned)  # unassigned literals
 
     def update_watched_literal(self, assignment: list, new_variable: int) -> Tuple[bool, int, Optional[int]]:
         """
