@@ -3,16 +3,22 @@ from typing import Tuple, Optional
 import torch
 
 from cdcl.cdcl_heuristic import CNFFormula
+from src.conflict import vars_of_clauses, conflict_clauses
+from src.loss import smooth_max_
 from src.models2 import make_model
 from args import make_args
 import os.path as osp
 from src.utils import load_checkpoint
 
 
-def one_pass(model, cnf):
+def one_pass(model, cnf, p, a):
+    # @TODO cnf 
     adj_pos, adj_neg = cnf
     xv = model(cnf)
-    loss, sm = loss_compute(xv, adj_pos, adj_neg, cnf.xc.size(0), gr_idx_cls[: cnf.xc.size(0)], False)
+    sm = smooth_max_(xv, adj_pos, adj_neg, p, a)
+    vp, vn = vars_of_clauses(sm, adj_pos), vars_of_clauses(sm, adj_neg)
+    cp, cn = conflict_clauses(sm, vp, adj_pos), conflict_clauses(sm, vn, adj_neg)
+    return xv, torch.unique(torch.cat([cp, cn]), sorted=True)
 
 
 def hybrid_cdcl(cnf_formula: CNFFormula,
@@ -40,8 +46,16 @@ def hybrid_cdcl(cnf_formula: CNFFormula,
     restarts = 0
     conflicts = 0
 
+    args = make_args()
+    device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
+    model = make_model(args=args).to(device)
+    last_epoch, loss = load_checkpoint(osp.join(args.save_root,
+                                                args.save_name + '_' + str(args.last_epoch) + '.pickle'),
+                                       model)
+
     # Unit propagation
-    propagated_literals, antecedent_of_conflict = cnf_formula.unit_propagation(decision_level)
+    # propagated_literals, antecedent_of_conflict = cnf_formula.unit_propagation(decision_level)
+    propagated_literals, antecedent_of_conflict = one_pass(cnf_formula)
     unit_propagations += len(propagated_literals)
 
     if antecedent_of_conflict:
@@ -51,12 +65,6 @@ def hybrid_cdcl(cnf_formula: CNFFormula,
     # popping the first element from the list is expensive.
     if assumption:
         assumption.reverse()
-    args = make_args()
-    device = torch.device('cuda:0') if args.use_gpu and torch.cuda.is_available() else torch.device('cpu')
-    model = make_model(args=args).to(device)
-    last_epoch, loss = load_checkpoint(osp.join(args.save_root,
-                                                args.save_name + '_' + str(args.last_epoch) + '.pickle'),
-                                       model)
 
     while not cnf_formula.all_variables_assigned():
         # Find the literal for decision by either picking one from assumption or finding one using decision heuristic
@@ -73,7 +81,8 @@ def hybrid_cdcl(cnf_formula: CNFFormula,
         decisions += 1
 
         # Unit propagation
-        propagated_literals, antecedent_of_conflict = cnf_formula.unit_propagation(decision_level)
+        # propagated_literals, antecedent_of_conflict = cnf_formula.unit_propagation(decision_level)
+        propagated_literals, antecedent_of_conflict = one_pass(cnf_formula)
         unit_propagations += len(propagated_literals)
 
         while antecedent_of_conflict:

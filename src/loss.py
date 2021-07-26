@@ -26,6 +26,20 @@ class LabelSmoothing(nn.Module, ABC):
         super(LabelSmoothing, self).__init__()
 
 
+def smooth_max_(v, adj_pos, adj_neg, p, a=None):
+    v = v.view(-1)
+    if a:
+        v = LossCompute.push_to_side(v, a)
+    nv = 1 - v
+    idx = torch.cat((adj_pos[0], adj_neg[0]))
+    xe = torch.cat((torch.exp(p * v)[adj_pos[1]], torch.exp(p * nv)[adj_neg[1]]))  # exp(x*p)
+    numerator = torch.mul(torch.cat((v[adj_pos[1]], nv[adj_neg[1]])), xe)  # x*exp(x*p)
+    numerator = scatter(numerator, idx, reduce="sum")
+    dominator = scatter(xe, idx, reduce="sum")
+    return torch.div(numerator, dominator)  # S(MAX')
+    # return scatter(torch.cat((xv[adj_pos[1]], nv[adj_neg[1]])), idx, reduce='max')
+
+
 class LossCompute(nn.Module, ABC):
     def __init__(self, p, a, opt=None, metric=None, debug=False):
         super(LossCompute, self).__init__()
@@ -45,7 +59,7 @@ class LossCompute(nn.Module, ABC):
         Desc:
             adj[0] is an array of clause indices, adj[1] is an array of variables
         """
-        sm = self._sm(v, adj_pos, adj_neg, self.p, self.a)
+        sm = smooth_max_(v, adj_pos, adj_neg, self.p)
         # print("XV distance: ", (xv - 0.5).square().sum() * 0.01)
         _loss = self.metric(sm, clause_count, gr_idx_cls)
         if is_train:
@@ -61,22 +75,8 @@ class LossCompute(nn.Module, ABC):
 
         return _loss
 
-    @staticmethod
-    def _sm(v, adj_pos, adj_neg, p, a):
-        v = v.view(-1)
-        # xv = LossCompute.push_to_side(xv, a)
-        nv = 1 - v
-        idx = torch.cat((adj_pos[0], adj_neg[0]))
-        xe = torch.cat((torch.exp(p * v)[adj_pos[1]], torch.exp(p * nv)[adj_neg[1]]))  # exp(x*p)
-        numerator = torch.mul(torch.cat((v[adj_pos[1]], nv[adj_neg[1]])), xe)  # x*exp(x*p)
-        numerator = scatter(numerator, idx, reduce="sum")
-        dominator = scatter(xe, idx, reduce="sum")
-        return torch.div(numerator, dominator)  # S(MAX')
-        # return scatter(torch.cat((xv[adj_pos[1]], nv[adj_neg[1]])), idx, reduce='max')
-
-    @staticmethod
-    def push_to_side(x, a):  # larger a means push harder
-        return 1 / (1 + torch.exp(a * (0.5 - x)))
+    def push_to_side(self, x):  # larger a means push harder
+        return 1 / (1 + torch.exp(self.a * (0.5 - x)))
 
 
 # def flip_search(xv, xc, adj_pos, adj_neg, ori_accuracy):
