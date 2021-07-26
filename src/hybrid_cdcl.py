@@ -13,12 +13,13 @@ from src.utils import load_checkpoint
 
 def one_pass(model, cnf, p, a):
     # @TODO cnf 
-    adj_pos, adj_neg = cnf
-    xv = model(cnf)
-    sm = smooth_max_(xv, adj_pos, adj_neg, p, a)
+    adj_pos, adj_neg = cnf.graphs_polarity()
+    xv = model(cnf.bipartite())   # assignment for variables
+    sm = smooth_max_(xv, adj_pos, adj_neg, p, a)  # evaluation of clauses
     vp, vn = vars_of_clauses(sm, adj_pos), vars_of_clauses(sm, adj_neg)
     cp, cn = conflict_clauses(sm, vp, adj_pos), conflict_clauses(sm, vn, adj_neg)
-    return xv, torch.unique(torch.cat([cp, cn]), sorted=True)
+
+    return torch.cat([vp, -vn]).tolist(), torch.unique(torch.cat([cp, cn]), sorted=True)
 
 
 def hybrid_cdcl(cnf_formula: CNFFormula,
@@ -82,7 +83,7 @@ def hybrid_cdcl(cnf_formula: CNFFormula,
 
         # Unit propagation
         # propagated_literals, antecedent_of_conflict = cnf_formula.unit_propagation(decision_level)
-        propagated_literals, antecedent_of_conflict = one_pass(cnf_formula)
+        propagated_literals, antecedent_of_conflict = one_pass(cnf_formula, p=args.p)
         unit_propagations += len(propagated_literals)
 
         while antecedent_of_conflict:
@@ -109,7 +110,7 @@ def hybrid_cdcl(cnf_formula: CNFFormula,
             decision_level = backtrack_level
 
             # Unit propagation of the learned clause
-            propagated_literals, antecedent_of_conflict = cnf_formula.unit_propagation(decision_level)
+            propagated_literals, antecedent_of_conflict = one_pass(model, cnf_formula, p=args.sm_par)
             unit_propagations += len(propagated_literals)
 
     return True, list(cnf_formula.assignment_stack), decisions, unit_propagations, restarts
