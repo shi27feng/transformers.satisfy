@@ -87,7 +87,7 @@ def hybrid_cdcl(cnf_formula: CNFFormula,
 
         # Unit propagation
         # propagated_literals, antecedent_of_conflict = cnf_formula.unit_propagation(decision_level)
-        propagated_literals, antecedent_of_conflict = one_pass(cnf_formula, p=args.p)
+        propagated_literals, antecedent_of_conflict = one_pass(model, cnf_formula, p=args.sm_par)
         unit_propagations += len(propagated_literals)
 
         while antecedent_of_conflict:
