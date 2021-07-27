@@ -494,6 +494,12 @@ class CNFFormula:
             for clause in adj_list:
                 print(clause.literals)
 
+    def graphs_polarity(self):
+        pass
+
+    def bipartite(self):
+        pass
+
 
 def cdcl(cnf_formula: CNFFormula,
          assumption: Optional[list] = None,

@@ -11,7 +11,7 @@ import os.path as osp
 from src.utils import load_checkpoint
 
 
-def one_pass(model, cnf, p, a):
+def one_pass(model, cnf: CNFFormula, p, a=None):
     # @TODO cnf 
     adj_pos, adj_neg = cnf.graphs_polarity()
     xv = model(cnf.bipartite())   # assignment for variables
@@ -20,6 +20,10 @@ def one_pass(model, cnf, p, a):
     cp, cn = conflict_clauses(sm, vp, adj_pos), conflict_clauses(sm, vn, adj_neg)
 
     return torch.cat([vp, -vn]).tolist(), torch.unique(torch.cat([cp, cn]), sorted=True)
+
+
+def conflict_select():
+    return
 
 
 def hybrid_cdcl(cnf_formula: CNFFormula,
